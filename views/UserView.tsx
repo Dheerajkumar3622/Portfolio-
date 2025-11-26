@@ -17,7 +17,6 @@ import Typewriter from '../components/Typewriter';
 import ProTipWidget from '../components/ProTipWidget';
 import AuthModal from '../components/AuthModal';
 import UserProfileModal from '../components/UserProfileModal';
-import VoiceAssistantWidget from '../components/VoiceAssistantWidget';
 
 
 const Header: React.FC<{ name: string; title: string; activeSection: string; onProfileClick: () => void; onLoginClick: () => void; }> = ({ name, title, activeSection, onProfileClick, onLoginClick }) => {
@@ -548,7 +547,7 @@ const UserView: React.FC = () => {
                             frameBorder="0"
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                             allowFullScreen
-                            className="rounded-lg shadow-2xl w-full h-full"
+                            className="rounded-lg shadow-md w-full h-full"
                             title="Promotional Video"
                         ></iframe>
                     )}
@@ -573,11 +572,6 @@ const UserView: React.FC = () => {
       </footer>
       {selectedProject && <ProjectDetailModal project={selectedProject} onClose={() => setSelectedProject(null)} />}
       {isProfileModalOpen && <UserProfileModal onClose={() => setIsProfileModalOpen(false)} />}
-      <VoiceAssistantWidget
-        portfolioData={portfolioData}
-        onNavigate={handleNavigate}
-        onOpenProject={handleOpenProject}
-      />
       <ProTipWidget />
       <BackToTopButton />
     </div>

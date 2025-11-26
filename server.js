@@ -1,3 +1,4 @@
+
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
@@ -14,16 +15,33 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json({ limit: '50mb' })); // Increased limit for base64 images
 
-// MongoDB Connection
+// MongoDB Connection Logic
 const MONGODB_URI = process.env.MONGODB_URI;
+const isProduction = process.env.NODE_ENV === 'production' || process.env.NODE_ENV !== 'development';
 
-if (!MONGODB_URI) {
-  console.warn("⚠️ Warning: MONGODB_URI is not defined in environment variables.");
-}
+// Only default to localhost if we are NOT in production
+const connectionString = MONGODB_URI || (isProduction ? null : 'mongodb://localhost:27017/portfolio_db');
 
-mongoose.connect(MONGODB_URI || 'mongodb://localhost:27017/portfolio_db')
-  .then(() => console.log('✅ Connected to MongoDB'))
-  .catch(err => console.error('❌ MongoDB connection error:', err));
+let isDbConnected = false;
+
+const connectDB = async () => {
+    if (!connectionString) {
+        console.warn("⚠️  MONGODB_URI is not defined. Running in static mode without database features.");
+        return;
+    }
+
+    try {
+        await mongoose.connect(connectionString);
+        isDbConnected = true;
+        console.log('✅ Connected to MongoDB');
+    } catch (err) {
+        console.error('❌ MongoDB connection error:', err.message);
+        console.warn("⚠️  Server continues running, but database features will fail.");
+    }
+};
+
+connectDB();
+
 
 // --- Schemas & Models ---
 
@@ -72,10 +90,20 @@ const portfolioSchema = new mongoose.Schema({
 const PortfolioModel = mongoose.model('Portfolio', portfolioSchema);
 
 
+// --- Helper for DB Safety ---
+const dbCheck = (res) => {
+    if (!isDbConnected) {
+        res.status(503).json({ error: 'Database service unavailable' });
+        return false;
+    }
+    return true;
+};
+
 // --- API Routes ---
 
 // 1. Portfolio Routes
 app.get('/api/portfolio', async (req, res) => {
+  if (!dbCheck(res)) return;
   try {
     const portfolio = await PortfolioModel.findOne({ identifier: 'main' });
     if (portfolio) {
@@ -89,6 +117,7 @@ app.get('/api/portfolio', async (req, res) => {
 });
 
 app.post('/api/portfolio', async (req, res) => {
+  if (!dbCheck(res)) return;
   try {
     const newData = req.body;
     await PortfolioModel.findOneAndUpdate(
@@ -104,6 +133,7 @@ app.post('/api/portfolio', async (req, res) => {
 
 // 2. Auth Routes
 app.post('/api/auth/signup', async (req, res) => {
+  if (!dbCheck(res)) return;
   try {
     const { id, hashedPassword } = req.body;
     const existing = await UserModel.findOne({ id });
@@ -119,6 +149,7 @@ app.post('/api/auth/signup', async (req, res) => {
 });
 
 app.get('/api/auth/user/:id', async (req, res) => {
+  if (!dbCheck(res)) return;
   try {
     const user = await UserModel.findOne({ id: req.params.id });
     res.json(user);
@@ -128,6 +159,7 @@ app.get('/api/auth/user/:id', async (req, res) => {
 });
 
 app.put('/api/auth/user', async (req, res) => {
+  if (!dbCheck(res)) return;
   try {
     const { id, hashedPassword } = req.body;
     await UserModel.findOneAndUpdate({ id }, { hashedPassword });
@@ -138,6 +170,7 @@ app.put('/api/auth/user', async (req, res) => {
 });
 
 app.get('/api/auth/users', async (req, res) => {
+  if (!dbCheck(res)) return;
   try {
     const users = await UserModel.find({}, { hashedPassword: 0 }); // Exclude passwords
     res.json(users);
@@ -147,6 +180,7 @@ app.get('/api/auth/users', async (req, res) => {
 });
 
 app.delete('/api/auth/user/:id', async (req, res) => {
+  if (!dbCheck(res)) return;
   try {
     await UserModel.findOneAndDelete({ id: req.params.id });
     res.json({ success: true });
@@ -157,6 +191,7 @@ app.delete('/api/auth/user/:id', async (req, res) => {
 
 // 3. Guestbook Routes
 app.get('/api/guestbook', async (req, res) => {
+  if (!dbCheck(res)) return;
   try {
     const limit = parseInt(req.query.limit) || 50;
     const offset = parseInt(req.query.offset) || 0;
@@ -173,6 +208,7 @@ app.get('/api/guestbook', async (req, res) => {
 });
 
 app.get('/api/guestbook/newer', async (req, res) => {
+  if (!dbCheck(res)) return;
   try {
     const timestamp = parseInt(req.query.timestamp) || 0;
     const entries = await GuestbookModel.find({ timestamp: { $gt: timestamp } })
@@ -184,6 +220,7 @@ app.get('/api/guestbook/newer', async (req, res) => {
 });
 
 app.post('/api/guestbook', async (req, res) => {
+  if (!dbCheck(res)) return;
   try {
     const entry = req.body;
     // Ensure ID and Timestamp are set
@@ -201,6 +238,7 @@ app.post('/api/guestbook', async (req, res) => {
 });
 
 app.put('/api/guestbook/:id', async (req, res) => {
+  if (!dbCheck(res)) return;
   try {
     await GuestbookModel.findOneAndUpdate({ id: req.params.id }, req.body);
     res.json({ success: true });
@@ -210,6 +248,7 @@ app.put('/api/guestbook/:id', async (req, res) => {
 });
 
 app.delete('/api/guestbook/:id', async (req, res) => {
+  if (!dbCheck(res)) return;
   try {
     await GuestbookModel.findOneAndDelete({ id: req.params.id });
     res.json({ success: true });
@@ -220,6 +259,7 @@ app.delete('/api/guestbook/:id', async (req, res) => {
 
 // 4. Leads Routes
 app.get('/api/leads', async (req, res) => {
+  if (!dbCheck(res)) return;
   try {
     const leads = await LeadModel.find().sort({ timestamp: -1 });
     res.json(leads);
@@ -229,6 +269,7 @@ app.get('/api/leads', async (req, res) => {
 });
 
 app.post('/api/leads', async (req, res) => {
+  if (!dbCheck(res)) return;
   try {
     const lead = req.body;
     const newLead = new LeadModel({
@@ -245,6 +286,7 @@ app.post('/api/leads', async (req, res) => {
 
 // 5. Reports Routes
 app.get('/api/reports', async (req, res) => {
+  if (!dbCheck(res)) return;
   try {
     const reports = await ReportModel.find().sort({ timestamp: -1 });
     res.json(reports);
@@ -254,6 +296,7 @@ app.get('/api/reports', async (req, res) => {
 });
 
 app.post('/api/reports', async (req, res) => {
+  if (!dbCheck(res)) return;
   try {
     const report = req.body;
     const newReport = new ReportModel({
@@ -269,6 +312,7 @@ app.post('/api/reports', async (req, res) => {
 });
 
 app.delete('/api/reports/:id', async (req, res) => {
+  if (!dbCheck(res)) return;
   try {
     await ReportModel.findOneAndDelete({ id: req.params.id });
     res.json({ success: true });
@@ -282,7 +326,7 @@ app.delete('/api/reports/:id', async (req, res) => {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV !== 'development') {
+if (isProduction) {
   app.use(express.static(path.join(__dirname, 'dist')));
 
   app.get('*', (req, res) => {

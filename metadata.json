@@ -1,7 +1,5 @@
 {
   "name": "Professional Portfolio Website",
-  "description": "A dynamic, colorful, and professional personal portfolio website for an engineer, featuring an admin panel for content customization and an AI-powered chat assistant for user interaction.",
-  "requestFramePermissions": [
-    "microphone"
-  ]
+  "description": "A dynamic, colorful, and professional personal portfolio website for an engineer, featuring an admin panel for content customization.",
+  "requestFramePermissions": []
 }

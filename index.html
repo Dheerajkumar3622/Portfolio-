@@ -1,0 +1,154 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Professional Portfolio</title>
+    <style>
+      :root {
+        /* Light Mode Colors */
+        --color-primary: #fdfcff;
+        --color-secondary: #ffffff;
+        --color-accent: #c084fc;
+        --color-highlight: #f59e0b;
+        --color-base-100: #f5f3ff;
+        --color-text-primary: #2e1065;
+        --color-text-secondary: #585076;
+        --color-cork-board: #EADBC8;
+        
+        /* Gradient variables for dynamic switching */
+        --bg-gradient-1: #eef2ff;
+        --bg-gradient-2: #f5f3ff;
+        --bg-gradient-3: #fdfcff;
+        --bg-gradient-4: #f0e7ff;
+      }
+
+      .dark {
+        /* Dark Mode Colors */
+        --color-primary: #0f172a;       /* Slate 900 */
+        --color-secondary: #1e293b;     /* Slate 800 */
+        --color-accent: #a78bfa;        /* Violet 400 */
+        --color-highlight: #fbbf24;     /* Amber 400 */
+        --color-base-100: #020617;      /* Slate 950 */
+        --color-text-primary: #f1f5f9;  /* Slate 100 */
+        --color-text-secondary: #94a3b8;/* Slate 400 */
+        --color-cork-board: #3f3f46;    /* Zinc 700 */
+
+        /* Dark Mode Gradients */
+        --bg-gradient-1: #0f172a;
+        --bg-gradient-2: #1e293b;
+        --bg-gradient-3: #172554; /* Blue 950 */
+        --bg-gradient-4: #312e81; /* Indigo 900 */
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        /* Use variables for background */
+        background: linear-gradient(-45deg, var(--bg-gradient-1), var(--bg-gradient-2), var(--bg-gradient-3), var(--bg-gradient-4));
+        background-size: 400% 400%;
+        animation: smokey-bg 30s ease infinite;
+        color: var(--color-text-primary);
+      }
+      @keyframes smokey-bg {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+      }
+    </style>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              'primary': 'var(--color-primary)',
+              'secondary': 'var(--color-secondary)',
+              'accent': 'var(--color-accent)',
+              'highlight': 'var(--color-highlight)',
+              'base-100': 'var(--color-base-100)',
+              'text-primary': 'var(--color-text-primary)',
+              'text-secondary': 'var(--color-text-secondary)',
+              'cork-board': 'var(--color-cork-board)',
+            },
+            animation: {
+              'fade-in-up': 'fadeInUp 0.6s ease-out forwards',
+              'slide-in': 'slideIn 0.5s ease-out forwards',
+              'toast-in-out': 'toast-in-out 3s ease-in-out forwards',
+              'subtle-rotate': 'subtleRotate 20s linear infinite',
+              'smokey-bg': 'smokey-bg 30s ease infinite',
+              'cursor-blink': 'cursor-blink 1s step-end infinite',
+              'attention-shake': 'attention-shake 8s ease-in-out infinite',
+            },
+            keyframes: {
+              fadeInUp: {
+                '0%': { opacity: '0', transform: 'translateY(30px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              },
+              slideIn: {
+                '0%': { transform: 'translateX(100%)' },
+                '100%': { transform: 'translateX(0)' },
+              },
+              'toast-in-out': {
+                '0%': { transform: 'translateY(20px)', opacity: 0 },
+                '10%': { transform: 'translateY(0)', opacity: 1 },
+                '90%': { transform: 'translateY(0)', opacity: 1 },
+                '100%': { transform: 'translateY(20px)', opacity: 0 },
+              },
+              subtleRotate: {
+                '0%': { transform: 'rotate(0deg)' },
+                '100%': { transform: 'rotate(360deg)' },
+              },
+              'smokey-bg': {
+                '0%': { backgroundPosition: '0% 50%' },
+                '50%': { backgroundPosition: '100% 50%' },
+                '100%': { backgroundPosition: '0% 50%' },
+              },
+              'cursor-blink': {
+                '0%, 100%': { opacity: '1' },
+                '50%': { opacity: '0' },
+              },
+              'attention-shake': {
+                '0%, 80%': { transform: 'scale(1) rotate(0deg)' },
+                '85%': { transform: 'scale(1.1) rotate(10deg)' },
+                '90%': { transform: 'scale(1.1) rotate(-10deg)' },
+                '95%': { transform: 'scale(1.1) rotate(5deg)' },
+                '100%': { transform: 'scale(1) rotate(0deg)' },
+              },
+            },
+            boxShadow: {
+              'glow-accent': '0 0 20px 5px rgba(192, 132, 252, 0.3)',
+              'glow-highlight': '0 0 20px 5px rgba(245, 158, 11, 0.3)',
+            }
+          }
+        }
+      }
+    </script>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.6",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.29.1",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
+    "dotenv": "https://aistudiocdn.com/dotenv@^17.2.3",
+    "mongoose": "https://aistudiocdn.com/mongoose@^9.0.0",
+    "express": "https://aistudiocdn.com/express@^5.1.0",
+    "cors": "https://aistudiocdn.com/cors@^2.8.5",
+    "url": "https://aistudiocdn.com/url@^0.11.4",
+    "vite": "https://aistudiocdn.com/vite@^7.2.4",
+    "path": "https://aistudiocdn.com/path@^0.12.7"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

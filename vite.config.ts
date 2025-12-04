@@ -13,8 +13,9 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     define: {
       // Replaces process.env in the code with the actual object of values.
-      // This works in tandem with the window.process polyfill in index.html.
-      'process.env': JSON.stringify(env)
+      'process.env': JSON.stringify(env),
+      // Prevents "process is not defined" error if a library uses process directly
+      'process': { env: env }
     },
     server: {
       proxy: {

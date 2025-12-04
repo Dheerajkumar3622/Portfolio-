@@ -5,13 +5,15 @@ import type { PortfolioData } from '../types';
 let ai: GoogleGenAI | null = null;
 
 try {
-    // Access process.env directly. In the browser, 'process' is now polyfilled by index.html,
-    // and 'process.env' is replaced by Vite with the actual environment variables.
-    // This double-safety prevents "ReferenceError: process is not defined".
-    if (process && process.env && process.env.API_KEY) {
-        ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    // In Vite, process.env.API_KEY is replaced by the actual string at build time.
+    // We check this value directly rather than checking the 'process' object, 
+    // which might not exist in the browser context.
+    const apiKey = process.env.API_KEY;
+
+    if (apiKey) {
+        ai = new GoogleGenAI({ apiKey: apiKey });
     } else {
-        console.warn("API_KEY not found in environment variables. AI features (Chat, Video Gen) will be disabled.");
+        console.warn("API_KEY not found. AI features (Chat, Video Gen) will be disabled.");
     }
 } catch (error) {
     console.error("Failed to initialize GoogleGenAI:", error);

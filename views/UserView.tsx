@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useAuth } from '../context/AuthContext';
@@ -284,7 +285,7 @@ const UserView: React.FC = () => {
   };
 
   return (
-    <div className="bg-primary text-text-primary min-h-screen overflow-x-hidden">
+    <div className="bg-primary text-text-primary min-h-screen w-full overflow-x-hidden">
       {isAuthModalOpen && <AuthModal onClose={() => setIsAuthModalOpen(false)} />}
       <Header 
         name={profile.name} 
@@ -294,7 +295,7 @@ const UserView: React.FC = () => {
         onLoginClick={() => setIsAuthModalOpen(true)}
       />
       
-      <main>
+      <main className="w-full overflow-x-hidden">
         <Hero profile={profile} />
         
         {/* Skills Section - Clean Grid */}
@@ -431,7 +432,7 @@ const UserView: React.FC = () => {
       
       <GuestbookWidget />
       
-      <footer id="contact" className="bg-primary py-16 border-t border-secondary">
+      <footer id="contact" className="bg-primary py-16 border-t border-secondary w-full">
             <div className="container mx-auto px-6">
                 <div className="flex flex-col items-center">
                     <SectionHeading title="Let's Connect" subtitle="Contact" />

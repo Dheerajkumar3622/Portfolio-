@@ -226,7 +226,7 @@ const ContactForm = () => {
     if (isSubmitted) {
         return (
             <div className="text-center bg-secondary/60 backdrop-blur-md border border-secondary/30 p-12 rounded-lg shadow-md animate-fade-in-up">
-                <svg className="w-16 h-16 mx-auto mb-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLineCap="round" strokeLineJoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <svg className="w-16 h-16 mx-auto mb-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 <h3 className="text-2xl font-bold text-text-primary mb-2">Thank You!</h3>
                 <p className="text-text-secondary">Your message has been received. I'll get back to you shortly.</p>
                 <button onClick={() => setIsSubmitted(false)} className="mt-6 bg-accent text-white font-bold py-2 px-4 rounded-md hover:bg-highlight transition-colors">Send Another Message</button>

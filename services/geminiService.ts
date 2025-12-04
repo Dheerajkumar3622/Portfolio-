@@ -1,12 +1,16 @@
 import { GoogleGenAI, Chat } from "@google/genai";
 import type { PortfolioData, Project, Skill, Education, Experience } from '../types';
 
-let ai: GoogleGenAI;
+let ai: GoogleGenAI | null = null;
 try {
-    ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+    // Safety check for browser environments where process might be undefined
+    if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+        ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+    } else {
+        console.warn("API_KEY not found or process.env is undefined. AI features will be disabled.");
+    }
 } catch (error) {
-    console.error("Failed to initialize GoogleGenAI. Make sure API_KEY is set.", error);
-    // You might want to handle this case more gracefully, e.g., by disabling AI features.
+    console.error("Failed to initialize GoogleGenAI.", error);
 }
 
 /**

@@ -88,6 +88,7 @@ export const PortfolioProvider: React.FC<{ children: ReactNode }> = ({ children 
       try {
         const savedData = await getPortfolio();
         if (savedData && Object.keys(savedData).length > 0) {
+          // Database has data, use it.
           const finalData = { ...defaultData };
           for (const key of Object.keys(finalData) as Array<keyof PortfolioData>) {
               if (savedData[key] !== undefined) {
@@ -96,6 +97,10 @@ export const PortfolioProvider: React.FC<{ children: ReactNode }> = ({ children 
           }
           setPortfolioData(finalData);
         } else {
+           // Database is empty (first deployment). 
+           // Initialize it with default data so all devices see the same starting point.
+           console.log("Database empty. Seeding with default data...");
+           await savePortfolio(defaultData);
            setPortfolioData(defaultData);
         }
       } catch (error) {
@@ -109,9 +114,11 @@ export const PortfolioProvider: React.FC<{ children: ReactNode }> = ({ children 
   const saveData = async (dataToSave: PortfolioData) => {
     try {
       await savePortfolio(dataToSave);
+      // We also update local state immediately for UI responsiveness
+      setPortfolioData(dataToSave);
     } catch (error) {
       console.error('Error saving data via API:', error);
-      alert('Failed to save data.');
+      alert('Failed to save data. Please check your connection.');
     }
   };
 

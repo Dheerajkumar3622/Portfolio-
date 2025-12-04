@@ -1,160 +1,140 @@
 
 import React, { useState, useEffect } from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
+import { useAuth } from '../context/AuthContext';
 import type { PortfolioData, Education, Skill, Project, Experience, GuestbookEntry, Lead, SocialLink, Memory, Note, Report, User } from '../types';
 import TagInput from '../components/TagInput';
 import { fetchGuestbook, removeGuestbook, fetchLeads, fetchReports, removeReport, fetchAllUsers, removeUser, postGuestbook, checkSystemHealth } from '../services/api';
 import { GoogleGenAI } from "@google/genai";
 
-const STORAGE_KEY_AUTH = 'adminAuth';
-const STORAGE_KEY_CREDS = 'adminCredentials';
-
-// Function to get credentials or set defaults
-const getCredentials = () => {
-    const storedCreds = localStorage.getItem(STORAGE_KEY_CREDS);
-    if (storedCreds) {
-        return JSON.parse(storedCreds);
-    }
-    const defaultCreds = { 
-        username: 'dheerajkumar3622', 
-        password: 'Dheeraj@123',
-        securityQuestion: 'What is your favorite engineering subject?',
-        securityAnswer: 'microprocessors' 
-    };
-    localStorage.setItem(STORAGE_KEY_CREDS, JSON.stringify(defaultCreds));
-    return defaultCreds;
-};
-
+const ADMIN_USERNAME = "Admin";
 
 const LoginForm: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
-    const [view, setView] = useState<'login' | 'forgot'>('login');
-
-    // State for password reset
-    const [resetUsername, setResetUsername] = useState('');
-    const [securityAnswer, setSecurityAnswer] = useState('');
-    const [newPassword, setNewPassword] = useState('');
-    const [confirmNewPassword, setConfirmNewPassword] = useState('');
-    const [resetMessage, setResetMessage] = useState({ type: '', text: '' });
+    const [isLoading, setIsLoading] = useState(false);
+    const [isSetupMode, setIsSetupMode] = useState(false);
     
-    const handleLogin = (e: React.FormEvent) => {
+    const { login, signup } = useAuth();
+
+    // Attempt to log in as "Admin" against the database
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        const creds = getCredentials();
-        if (username === creds.username && password === creds.password) {
-            localStorage.setItem(STORAGE_KEY_AUTH, 'true');
+        setError('');
+        setIsLoading(true);
+
+        // Enforce Admin username check
+        if (username.toLowerCase() !== ADMIN_USERNAME.toLowerCase()) {
+            setError('Access Denied. You must log in as "Admin" to access this panel.');
+            setIsLoading(false);
+            return;
+        }
+
+        const result = await login(username, password);
+        if (result.success) {
             onLogin();
-            setError('');
         } else {
-            setError('Invalid credentials. Please try again.');
+            setError(result.message);
+            // If user not found, suggest setup
+            if (result.message.includes("Invalid username") || result.message.includes("not found")) {
+                setIsSetupMode(true);
+            }
         }
+        setIsLoading(false);
     };
-    
-    const handlePasswordReset = (e: React.FormEvent) => {
+
+    // Create the "Admin" user in the database if it doesn't exist
+    const handleSetup = async (e: React.FormEvent) => {
         e.preventDefault();
-        setResetMessage({ type: '', text: '' });
-        const creds = getCredentials();
+        setError('');
+        setIsLoading(true);
 
-        if (resetUsername !== creds.username) {
-            setResetMessage({ type: 'error', text: 'Username not found.' });
-            return;
-        }
-        if (securityAnswer.toLowerCase() !== creds.securityAnswer.toLowerCase()) {
-            setResetMessage({ type: 'error', text: 'Security answer is incorrect.' });
-            return;
-        }
-        if (newPassword.length < 8) {
-            setResetMessage({ type: 'error', text: 'New password must be at least 8 characters long.' });
-            return;
-        }
-        if (newPassword !== confirmNewPassword) {
-            setResetMessage({ type: 'error', text: 'Passwords do not match.' });
-            return;
+        if (password.length < 6) {
+             setError("Password must be at least 6 characters.");
+             setIsLoading(false);
+             return;
         }
 
-        const newCreds = { ...creds, password: newPassword };
-        localStorage.setItem(STORAGE_KEY_CREDS, JSON.stringify(newCreds));
-        setResetMessage({ type: 'success', text: 'Password has been reset successfully! You can now log in.' });
-        
-        // Clear fields and switch back to login view after a delay
-        setTimeout(() => {
-            setView('login');
-            setResetMessage({ type: '', text: ''});
-            setResetUsername('');
-            setSecurityAnswer('');
-            setNewPassword('');
-            setConfirmNewPassword('');
-        }, 3000);
-    };
-
-    if (view === 'forgot') {
-        const creds = getCredentials();
-        return (
-             <div className="min-h-screen flex items-center justify-center bg-gray-900">
-                <div className="bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-md">
-                    <h1 className="text-3xl font-bold text-center mb-6 text-white">Reset Password</h1>
-                    {resetMessage.text && <p className={`${resetMessage.type === 'error' ? 'bg-red-500/20 text-red-300' : 'bg-green-500/20 text-green-300'} p-3 rounded-md mb-4`}>{resetMessage.text}</p>}
-                     <form onSubmit={handlePasswordReset} className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300">Username</label>
-                            <input type="text" value={resetUsername} onChange={(e) => setResetUsername(e.target.value)} className="w-full bg-gray-700 border-gray-600 rounded-md p-3 text-white mt-1" required/>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300">{creds.securityQuestion}</label>
-                            <input type="text" value={securityAnswer} onChange={(e) => setSecurityAnswer(e.target.value)} className="w-full bg-gray-700 border-gray-600 rounded-md p-3 text-white mt-1" required/>
-                        </div>
-                         <div>
-                            <label className="block text-sm font-medium text-gray-300">New Password</label>
-                            <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full bg-gray-700 border-gray-600 rounded-md p-3 text-white mt-1" required/>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300">Confirm New Password</label>
-                            <input type="password" value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} className="w-full bg-gray-700 border-gray-600 rounded-md p-3 text-white mt-1" required/>
-                        </div>
-                        <button type="submit" className="w-full bg-gradient-to-r from-secondary to-accent text-white font-bold py-3 rounded-md hover:opacity-90 transition-opacity">Reset Password</button>
-                        <button type="button" onClick={() => setView('login')} className="w-full text-center text-sm text-gray-400 hover:text-white mt-2">Back to Login</button>
-                     </form>
-                </div>
-            </div>
-        );
+        const result = await signup(ADMIN_USERNAME, password);
+        if (result.success) {
+            // Auto login after signup
+            await login(ADMIN_USERNAME, password);
+            onLogin();
+        } else {
+            setError(result.message);
+        }
+        setIsLoading(false);
     }
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-900">
-            <div className="bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-md">
-                <h1 className="text-3xl font-bold text-center mb-6 text-white">Admin Login</h1>
-                {error && <p className="bg-red-500/20 text-red-300 p-3 rounded-md mb-4">{error}</p>}
-                <form onSubmit={handleLogin} className="space-y-6">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-300">Username</label>
-                        <input
-                            type="text"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            className="w-full bg-gray-700 border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-accent mt-1"
-                            autoComplete="username"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-300">Password</label>
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="w-full bg-gray-700 border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-accent mt-1"
-                            autoComplete="current-password"
-                        />
-                    </div>
-                    <button type="submit" className="w-full bg-gradient-to-r from-secondary to-accent text-white font-bold py-3 rounded-md hover:opacity-90 transition-opacity">
-                        Login
-                    </button>
-                </form>
-                 <div className="text-center mt-4">
-                    <button onClick={() => setView('forgot')} className="text-sm text-gray-400 hover:text-white">
-                        Forgot Password?
-                    </button>
-                </div>
+            <div className="bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-md border border-gray-700">
+                <h1 className="text-3xl font-bold text-center mb-2 text-white">Admin Access</h1>
+                <p className="text-center text-gray-400 mb-6 text-sm">
+                    {isSetupMode ? "Initialize Admin Account" : "Secure Login"}
+                </p>
+                
+                {error && <div className="bg-red-500/20 text-red-300 p-3 rounded-md mb-4 text-sm border border-red-500/30">{error}</div>}
+                
+                {isSetupMode ? (
+                     <form onSubmit={handleSetup} className="space-y-6">
+                        <div className="bg-blue-900/20 p-3 rounded border border-blue-500/30 text-blue-200 text-xs mb-4">
+                            <strong>Setup Mode:</strong> No Admin account detected. Create your secure password now.
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-300">Admin Username</label>
+                            <input
+                                type="text"
+                                value={ADMIN_USERNAME}
+                                disabled
+                                className="w-full bg-gray-700/50 border-gray-600 rounded-md p-3 text-gray-400 mt-1 cursor-not-allowed"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-300">Set Password</label>
+                            <input
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full bg-gray-700 border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-accent mt-1"
+                                placeholder="Create a strong password"
+                                autoFocus
+                            />
+                        </div>
+                        <button type="submit" disabled={isLoading} className="w-full bg-green-600 text-white font-bold py-3 rounded-md hover:bg-green-700 transition-colors disabled:opacity-50">
+                            {isLoading ? 'Creating Account...' : 'Create Admin Account'}
+                        </button>
+                        <button type="button" onClick={() => setIsSetupMode(false)} className="w-full text-center text-gray-400 text-sm hover:text-white">Cancel</button>
+                    </form>
+                ) : (
+                    <form onSubmit={handleLogin} className="space-y-6">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-300">Username</label>
+                            <input
+                                type="text"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                className="w-full bg-gray-700 border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-accent mt-1"
+                                placeholder="Enter 'Admin'"
+                                autoComplete="username"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-300">Password</label>
+                            <input
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full bg-gray-700 border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-accent mt-1"
+                                autoComplete="current-password"
+                            />
+                        </div>
+                        <button type="submit" disabled={isLoading} className="w-full bg-gradient-to-r from-secondary to-accent text-white font-bold py-3 rounded-md hover:opacity-90 transition-opacity disabled:opacity-50">
+                            {isLoading ? 'Authenticating...' : 'Login'}
+                        </button>
+                    </form>
+                )}
             </div>
         </div>
     );
@@ -176,7 +156,6 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     const [leads, setLeads] = useState<Lead[]>([]);
     const [reports, setReports] = useState<Report[]>([]);
     const [users, setUsers] = useState<User[]>([]);
-    const [errors, setErrors] = useState<any>({});
     const [activeTab, setActiveTab] = useState('Profile');
     const [isDirty, setIsDirty] = useState(false);
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -867,26 +846,31 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
 };
 
 const AdminView: React.FC = () => {
+    const { currentUser } = useAuth();
     const [isAuthenticated, setIsAuthenticated] = useState(false);
 
     useEffect(() => {
-        const auth = localStorage.getItem(STORAGE_KEY_AUTH);
-        if (auth === 'true') {
+        // If logged in user is Admin, they are authenticated
+        if (currentUser && currentUser.id.toLowerCase() === ADMIN_USERNAME.toLowerCase()) {
             setIsAuthenticated(true);
+        } else {
+            setIsAuthenticated(false);
         }
-    }, []);
+    }, [currentUser]);
 
-    const handleLogin = () => {
-        setIsAuthenticated(true);
+    const handleLoginSuccess = () => {
+        // Auth context handles session, local state just triggers re-render
     };
 
     const handleLogout = () => {
-        localStorage.removeItem(STORAGE_KEY_AUTH);
-        setIsAuthenticated(false);
+        // We need to call logout from useAuth.
+        // But since this is inside AdminDashboard which receives onLogout...
+        // We'll wrap it.
+        window.location.reload(); // Simple way to clear context/session for now.
     };
 
     if (!isAuthenticated) {
-        return <LoginForm onLogin={handleLogin} />;
+        return <LoginForm onLogin={handleLoginSuccess} />;
     }
 
     return <AdminDashboard onLogout={handleLogout} />;

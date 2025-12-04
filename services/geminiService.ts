@@ -1,16 +1,20 @@
+
 import { GoogleGenAI, Chat } from "@google/genai";
-import type { PortfolioData, Project, Skill, Education, Experience } from '../types';
+import type { PortfolioData } from '../types';
 
 let ai: GoogleGenAI | null = null;
+
 try {
-    // Safety check for browser environments where process might be undefined
-    if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
-        ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+    // Access process.env directly. In the browser, 'process' is now polyfilled by index.html,
+    // and 'process.env' is replaced by Vite with the actual environment variables.
+    // This double-safety prevents "ReferenceError: process is not defined".
+    if (process && process.env && process.env.API_KEY) {
+        ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     } else {
-        console.warn("API_KEY not found or process.env is undefined. AI features will be disabled.");
+        console.warn("API_KEY not found in environment variables. AI features (Chat, Video Gen) will be disabled.");
     }
 } catch (error) {
-    console.error("Failed to initialize GoogleGenAI.", error);
+    console.error("Failed to initialize GoogleGenAI:", error);
 }
 
 /**
@@ -58,7 +62,7 @@ const getPortfolioContextString = (data: PortfolioData): string => {
  */
 export const startPortfolioChat = (portfolioData: PortfolioData): Chat | null => {
     if (!ai) {
-        console.error("Gemini AI service is not available.");
+        console.error("Gemini AI service is not available (Missing API Key).");
         return null;
     }
 

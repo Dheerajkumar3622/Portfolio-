@@ -252,23 +252,6 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         return () => { if(interval) clearInterval(interval); }
     }, [activeTab]);
 
-    // State for password change
-    const [oldPassword, setOldPassword] = useState('');
-    const [newPassword, setNewPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [passwordMessage, setPasswordMessage] = useState({ type: '', text: '' });
-    
-    // State for security question
-    const [securityQuestion, setSecurityQuestion] = useState('');
-    const [securityAnswer, setSecurityAnswer] = useState('');
-    const [securityMessage, setSecurityMessage] = useState({ type: '', text: '' });
-    
-    useEffect(() => {
-        const creds = getCredentials();
-        setSecurityQuestion(creds.securityQuestion);
-        setSecurityAnswer(creds.securityAnswer);
-    }, []);
-
     const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         setLocalData(prev => ({
@@ -292,6 +275,11 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     };
 
     const handleGenerateVideo = async () => {
+        if (!process.env.API_KEY) {
+            alert("API_KEY is not defined in the environment variables. Please add it to Render settings to use Veo.");
+            return;
+        }
+
         if (typeof window !== 'undefined' && (window as any).aistudio) {
             const aistudio = (window as any).aistudio;
             const hasKey = await aistudio.hasSelectedApiKey();
@@ -472,769 +460,436 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     const handleAddNote = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newNote.title || !newNote.description || !newNote.file) {
-            alert("Please fill in all fields and select a file.");
-            return;
+             alert('Please fill in all note fields and select a file.');
+             return;
         }
-
         setUploadingNote(true);
         try {
-            const fileData = await fileToBase64(newNote.file);
-            const noteToAdd: Note = {
+            const base64 = await fileToBase64(newNote.file);
+            const noteData: Note = {
                 id: `note-${Date.now()}`,
                 title: newNote.title,
                 description: newNote.description,
+                fileData: base64,
                 fileName: newNote.file.name,
-                fileType: newNote.file.type,
-                fileData: fileData
+                fileType: newNote.file.type
             };
-
-            setLocalData(prev => ({
-                ...prev,
-                notes: [...prev.notes, noteToAdd]
-            }));
-            
+            setLocalData(prev => ({ ...prev, notes: [...prev.notes, noteData] }));
             setNewNote({ title: '', description: '', file: null });
-            (e.target as HTMLFormElement).reset();
-
+            // Reset file input (simple way)
+            const fileInput = document.getElementById('note-file-input') as HTMLInputElement;
+            if(fileInput) fileInput.value = '';
         } catch (error) {
-            console.error("Error uploading note:", error);
-            alert("Failed to upload note.");
+            console.error(error);
+            alert('Error uploading file');
         } finally {
             setUploadingNote(false);
         }
-    }
-
-
-    const validateData = (data: PortfolioData) => {
-        const newErrors: any = {
-            profile: {},
-            education: [],
-            experience: [],
-            projects: [],
-            skills: []
-        };
-        let isValid = true;
-
-        if (!data.profile.name.trim()) { newErrors.profile.name = 'Name is required.'; isValid = false; }
-        if (!data.profile.title.trim()) { newErrors.profile.title = 'Title is required.'; isValid = false; }
-        if (!data.profile.about.trim()) { newErrors.profile.about = 'About section is required.'; isValid = false; }
-
-        data.education.forEach((edu, index) => {
-            const eduErrors: any = {};
-            if (!edu.degree.trim()) { eduErrors.degree = 'Degree is required.'; isValid = false; }
-            if (!edu.institution.trim()) { eduErrors.institution = 'Institution is required.'; isValid = false; }
-            if (!edu.period.trim()) { eduErrors.period = 'Period is required.'; isValid = false; }
-            if (!edu.details.trim()) { eduErrors.details = 'Details are required.'; isValid = false; }
-            if (Object.keys(eduErrors).length > 0) { newErrors.education[index] = eduErrors; }
-        });
-
-        data.experience.forEach((exp, index) => {
-            const expErrors: any = {};
-            if (!exp.role.trim()) { expErrors.role = 'Role is required.'; isValid = false; }
-            if (!exp.organization.trim()) { expErrors.organization = 'Organization is required.'; isValid = false; }
-            if (!exp.startDate.trim()) { expErrors.startDate = 'Start Date is required.'; isValid = false; }
-            if (!exp.endDate.trim()) { expErrors.endDate = 'End Date is required.'; isValid = false; }
-            if (!exp.description.trim()) { expErrors.description = 'Description is required.'; isValid = false; }
-            if (Object.keys(expErrors).length > 0) { newErrors.experience[index] = expErrors; }
-        });
-
-        data.projects.forEach((proj, index) => {
-            const projErrors: any = {};
-            if (!proj.title.trim()) { projErrors.title = 'Title is required.'; isValid = false; }
-            if (!proj.description.trim()) { projErrors.description = 'Short description is required.'; isValid = false; }
-            if (!proj.longDescription.trim()) { projErrors.longDescription = 'Detailed description is required.'; isValid = false; }
-            if (!proj.keyLearning.trim()) { projErrors.keyLearning = 'Key learning is required.'; isValid = false; }
-            if (proj.technologies.length === 0) {
-                projErrors.technologies = 'At least one technology is required.'; isValid = false;
-            }
-            if (Object.keys(projErrors).length > 0) { newErrors.projects[index] = projErrors; }
-        });
-
-        data.skills.forEach((skill, index) => {
-            const skillErrors: any = {};
-            if (!skill.name.trim()) { skillErrors.name = 'Skill name is required.'; isValid = false; }
-            if (Object.keys(skillErrors).length > 0) { newErrors.skills[index] = skillErrors; }
-        });
-
-        return { isValid, errors: newErrors };
     };
 
-    const handleSaveChanges = async () => {
-        const { isValid, errors: validationErrors } = validateData(localData);
-        setErrors(validationErrors);
-
-        if (!isValid) {
-            alert('Please fix the validation errors before saving.');
-            return;
-        }
-
+    const handleSave = async () => {
         setSaveStatus('saving');
-        await saveData(localData);
-        setPortfolioData(localData);
-        setSaveStatus('saved');
-        setTimeout(() => setSaveStatus('idle'), 2000);
-    };
-    
-    const handleChangePassword = (e: React.FormEvent) => {
-        e.preventDefault();
-        setPasswordMessage({ type: '', text: '' });
-        const creds = getCredentials();
-
-        if (oldPassword !== creds.password) {
-            setPasswordMessage({ type: 'error', text: 'Old password does not match.' });
-            return;
-        }
-        if (newPassword.length < 8) {
-            setPasswordMessage({ type: 'error', text: 'New password must be at least 8 characters long.' });
-            return;
-        }
-        if (newPassword !== confirmPassword) {
-            setPasswordMessage({ type: 'error', text: 'New passwords do not match.' });
-            return;
-        }
-
-        const newCreds = { ...creds, password: newPassword };
-        localStorage.setItem(STORAGE_KEY_CREDS, JSON.stringify(newCreds));
-        setPasswordMessage({ type: 'success', text: 'Password changed successfully!' });
-        
-        setOldPassword('');
-        setNewPassword('');
-        setConfirmPassword('');
-    };
-
-    const handleSecurityUpdate = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!securityQuestion.trim() || !securityAnswer.trim()) {
-            setSecurityMessage({ type: 'error', text: 'Question and answer cannot be empty.' });
-            return;
-        }
-        const creds = getCredentials();
-        const newCreds = { ...creds, securityQuestion, securityAnswer };
-        localStorage.setItem(STORAGE_KEY_CREDS, JSON.stringify(newCreds));
-        setSecurityMessage({ type: 'success', text: 'Security question updated successfully!' });
-    };
-
-    const handleAdminChatSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if(!adminReply.trim()) return;
-
         try {
-            await postGuestbook({ userId: 'Admin', message: adminReply });
+            await saveData(localData);
+            setPortfolioData(localData); // Update context
+            setSaveStatus('saved');
+            setTimeout(() => setSaveStatus('idle'), 3000);
+        } catch(e) {
+            console.error(e);
+            setSaveStatus('idle');
+            alert('Error saving data');
+        }
+    };
+
+    const handleReplyToGuestbook = async (entry: GuestbookEntry) => {
+        if(!adminReply.trim()) return;
+        try {
+            // Replying as admin post
+            await postGuestbook({ userId: 'Admin', message: `@${entry.userId} ${adminReply}` });
             setAdminReply('');
             fetchGuestbookData();
-        } catch (error) {
-            console.error("Failed to post admin message", error);
-            alert("Failed to send message.");
+        } catch(e) {
+            alert("Failed to reply");
         }
     };
 
-    const renderSaveButtonContent = () => {
-        switch (saveStatus) {
-            case 'saving': return 'Saving...';
-            case 'saved': return 'Saved!';
-            default: return 'Save All Changes';
+    const handleDeleteGuestbook = async (id: string) => {
+        if(window.confirm('Delete this message?')) {
+            await removeGuestbook(id);
+            fetchGuestbookData();
         }
     };
     
-    const TABS = ['Profile', 'Skills', 'Projects', 'Memories', 'Education', 'Experience', 'Notes', 'Public Chat', 'Moderation', 'Contact Leads', 'User Management', 'Settings'];
+    const handleDeleteReport = async (id: string) => {
+         await removeReport(id);
+         fetchReportData();
+    };
+
+    const handleBanUser = async (id: string) => {
+        if(window.confirm(`Are you sure you want to delete user ${id}? This cannot be undone.`)) {
+            await removeUser(id);
+            fetchUsersData();
+        }
+    };
 
     return (
-        <div className="bg-gray-900 text-white min-h-screen">
-            {/* Status Banner */}
-            <div className={`p-2 text-center text-sm font-bold ${systemHealth.database === 'connected' ? 'bg-green-600' : 'bg-red-600'}`}>
-                {systemHealth.database === 'connected' 
-                    ? "🟢 System Online: Database Connected. All changes are live."
-                    : "🔴 Offline Mode: Database Not Connected. Data is saved to local storage only."}
-                {systemHealth.database !== 'connected' && (
-                    <span className="ml-2 underline cursor-help" title="Add MONGODB_URI to Render Environment Variables to fix this.">Why?</span>
-                )}
-            </div>
+        <div className="flex h-screen bg-gray-900 text-gray-100 overflow-hidden font-sans">
+            {/* Sidebar */}
+            <aside className="w-64 bg-gray-800 flex flex-col border-r border-gray-700">
+                <div className="p-6 border-b border-gray-700">
+                    <h2 className="text-xl font-bold text-accent">Admin Panel</h2>
+                    <p className="text-xs text-gray-400 mt-1">Manage Portfolio & Data</p>
+                    <div className="flex items-center gap-2 mt-4 text-xs">
+                        <span className={`w-2 h-2 rounded-full ${systemHealth.status === 'ok' ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                        <span>DB: {systemHealth.database}</span>
+                    </div>
+                </div>
+                <nav className="flex-1 overflow-y-auto py-4">
+                    {['Profile', 'Skills', 'Projects', 'Experience', 'Education', 'Memories', 'Notes', 'Public Chat', 'Contact Leads', 'Moderation', 'User Management'].map(tab => (
+                        <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab)}
+                            className={`w-full text-left px-6 py-3 transition-colors ${activeTab === tab ? 'bg-gray-700 text-accent border-r-4 border-accent' : 'text-gray-400 hover:bg-gray-700/50 hover:text-gray-200'}`}
+                        >
+                            {tab}
+                        </button>
+                    ))}
+                </nav>
+                <div className="p-4 border-t border-gray-700">
+                    <button onClick={onLogout} className="w-full bg-red-500/10 text-red-400 py-2 rounded-md hover:bg-red-500/20 transition-colors">Logout</button>
+                </div>
+            </aside>
 
-            <div className="container mx-auto p-4 md:p-8">
-                <header className="flex flex-col sm:flex-row justify-between sm:items-center mb-8 pb-4 border-b border-gray-700">
-                    <h1 className="text-4xl font-bold mb-4 sm:mb-0">Admin Dashboard</h1>
-                    <div className="flex items-center space-x-4">
+            {/* Main Content */}
+            <main className="flex-1 flex flex-col overflow-hidden">
+                <header className="bg-gray-800 border-b border-gray-700 p-4 flex justify-between items-center">
+                    <h1 className="text-xl font-semibold">{activeTab}</h1>
+                    <div className="flex items-center gap-4">
+                        {isDirty && <span className="text-yellow-400 text-sm">Unsaved Changes</span>}
                         <button 
-                            onClick={handleSaveChanges} 
-                            disabled={!isDirty || saveStatus !== 'idle'}
-                            className={`font-bold py-2 px-4 rounded-md transition-colors ${
-                                !isDirty ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 
-                                saveStatus === 'saved' ? 'bg-green-600' : 
-                                'bg-blue-600 hover:bg-blue-700'
+                            onClick={handleSave} 
+                            disabled={saveStatus === 'saving'}
+                            className={`px-6 py-2 rounded-md font-bold transition-all ${
+                                saveStatus === 'saved' ? 'bg-green-500 text-white' : 
+                                saveStatus === 'saving' ? 'bg-gray-600 text-gray-300' :
+                                'bg-accent text-white hover:bg-highlight'
                             }`}
                         >
-                            {renderSaveButtonContent()}
+                            {saveStatus === 'saved' ? 'Saved!' : saveStatus === 'saving' ? 'Saving...' : 'Save All Changes'}
                         </button>
-                        <button onClick={onLogout} className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md transition-colors">Logout</button>
                     </div>
                 </header>
-                
-                <div className="flex flex-col md:flex-row gap-8">
-                    <aside className="md:w-1/5">
-                         <nav className="flex flex-row md:flex-col overflow-x-auto md:overflow-x-visible -mx-4 px-4 md:-mx-0 md:px-0">
-                            {TABS.map(tab => (
-                                 <button
-                                    key={tab}
-                                    onClick={() => setActiveTab(tab)}
-                                    className={`w-full text-left p-3 rounded-md mb-2 transition-colors whitespace-nowrap ${activeTab === tab ? 'bg-accent text-white' : 'hover:bg-gray-700'}`}
-                                >
-                                    {tab}
-                                </button>
-                            ))}
-                        </nav>
-                    </aside>
 
-                    <main className="md:w-4/5">
-                        <div className="bg-gray-800 p-6 rounded-lg">
-                           {/* Profile Section */}
-                           {activeTab === 'Profile' && (
+                <div className="flex-1 overflow-y-auto p-8">
+                    {activeTab === 'Profile' && (
+                        <div className="space-y-6 max-w-3xl">
+                            <div className="grid grid-cols-2 gap-6">
                                 <div>
-                                    <h2 className="text-2xl font-semibold mb-4 border-b border-gray-700 pb-2">Profile</h2>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div>
-                                            <label className="block mb-1">Name</label>
-                                            <input type="text" name="name" value={localData.profile.name} onChange={handleProfileChange} className={`w-full bg-gray-700 p-2 rounded-md border ${errors.profile?.name ? 'border-red-500' : 'border-transparent'}`}/>
-                                            {errors.profile?.name && <p className="text-red-400 text-sm mt-1">{errors.profile.name}</p>}
-                                        </div>
-                                        <div>
-                                            <label className="block mb-1">Title</label>
-                                            <input type="text" name="title" value={localData.profile.title} onChange={handleProfileChange} className={`w-full bg-gray-700 p-2 rounded-md border ${errors.profile?.title ? 'border-red-500' : 'border-transparent'}`}/>
-                                            {errors.profile?.title && <p className="text-red-400 text-sm mt-1">{errors.profile.title}</p>}
-                                        </div>
-                                        <div className="md:col-span-2">
-                                            <label className="block mb-1">About</label>
-                                            <textarea name="about" value={localData.profile.about} onChange={handleProfileChange} rows={5} className={`w-full bg-gray-700 p-2 rounded-md border ${errors.profile?.about ? 'border-red-500' : 'border-transparent'}`}></textarea>
-                                             {errors.profile?.about && <p className="text-red-400 text-sm mt-1">{errors.profile.about}</p>}
-                                        </div>
-                                         <div>
-                                            <label className="block mb-1">Profile Picture (Upload)</label>
-                                            <input type="file" accept="image/*" onChange={handleProfilePicChange} className="w-full bg-gray-700 p-2 rounded-md file:mr-4 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100"/>
-                                        </div>
-                                        <div>
-                                            <label className="block mb-1">Promo Video (YouTube URL, Upload, or Generate AI)</label>
-                                            <div className="flex flex-col gap-2">
-                                                <input type="text" name="promoVideo" placeholder="Enter YouTube URL" value={localData.profile.promoVideo.startsWith('data:video') ? '' : localData.profile.promoVideo} onChange={handleProfileChange} className="w-full bg-gray-700 p-2 rounded-md"/>
-                                                <div className="flex gap-2">
-                                                    <input type="file" accept="video/*" onChange={handlePromoVideoChange} className="w-full bg-gray-700 p-2 rounded-md file:mr-4 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100"/>
-                                                    <button 
-                                                        onClick={handleGenerateVideo} 
-                                                        disabled={isGeneratingVideo}
-                                                        className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-1 px-3 rounded-md whitespace-nowrap disabled:opacity-50 transition-all"
-                                                    >
-                                                        {isGeneratingVideo ? 'Generating...' : 'Generate with AI (Veo)'}
-                                                    </button>
-                                                </div>
-                                                {generationStatus && <p className="text-sm text-accent animate-pulse">{generationStatus}</p>}
-                                            </div>
-                                        </div>
+                                    <label className="block text-sm font-medium text-gray-400 mb-1">Full Name</label>
+                                    <input type="text" name="name" value={localData.profile.name} onChange={handleProfileChange} className="w-full bg-gray-700 border-gray-600 rounded p-2 text-white" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-400 mb-1">Professional Title</label>
+                                    <input type="text" name="title" value={localData.profile.title} onChange={handleProfileChange} className="w-full bg-gray-700 border-gray-600 rounded p-2 text-white" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-400 mb-1">About Me</label>
+                                <textarea name="about" value={localData.profile.about} onChange={handleProfileChange} rows={5} className="w-full bg-gray-700 border-gray-600 rounded p-2 text-white" />
+                            </div>
+                            <div className="grid grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-400 mb-1">Profile Picture</label>
+                                    <input type="file" accept="image/*" onChange={handleProfilePicChange} className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-accent file:text-white hover:file:bg-highlight"/>
+                                    {localData.profile.profilePicture && <img src={localData.profile.profilePicture} alt="Profile" className="mt-4 h-32 w-32 rounded-full object-cover border-4 border-gray-600" />}
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-400 mb-1">Promo Video</label>
+                                    <div className="flex gap-2 mb-2">
+                                        <input type="file" accept="video/*" onChange={handlePromoVideoChange} className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-accent file:text-white hover:file:bg-highlight"/>
+                                        <button onClick={handleGenerateVideo} disabled={isGeneratingVideo} className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm disabled:opacity-50">
+                                            {isGeneratingVideo ? 'Generating...' : 'Generate with AI'}
+                                        </button>
                                     </div>
-                                    {/* Social Links */}
-                                    <div className="mt-6 pt-4 border-t border-gray-700">
-                                         <h3 className="text-xl font-semibold mb-4">Social Links</h3>
-                                         {localData.profile.socialLinks.map((link, index) => (
-                                             <div key={link.id} className="grid grid-cols-1 md:grid-cols-5 gap-2 mb-2 items-center">
-                                                <div className="md:col-span-2">
-                                                     <input type="text" placeholder="Platform (e.g., GitHub)" value={link.platform} onChange={(e) => handleSocialLinkChange(index, 'platform', e.target.value)} className="w-full bg-gray-700 p-2 rounded-md"/>
-                                                </div>
-                                                <div className="md:col-span-2">
-                                                    <input type="text" placeholder="URL" value={link.url} onChange={(e) => handleSocialLinkChange(index, 'url', e.target.value)} className="w-full bg-gray-700 p-2 rounded-md"/>
-                                                </div>
-                                                <button onClick={() => handleRemoveSocialLink(link.id)} className="bg-red-500 text-white rounded-md h-10 w-10 flex items-center justify-center text-xs justify-self-end">X</button>
-                                             </div>
-                                         ))}
-                                         <button onClick={handleAddSocialLink} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md mt-2">Add Social Link</button>
+                                    {generationStatus && <p className="text-xs text-purple-300 mb-2">{generationStatus}</p>}
+                                    {localData.profile.promoVideo && (
+                                        localData.profile.promoVideo.startsWith('data:video') ?
+                                        <video src={localData.profile.promoVideo} controls className="mt-2 h-32 w-auto rounded border border-gray-600" /> :
+                                        <div className="mt-2 text-sm text-gray-400">Video URL: {localData.profile.promoVideo}</div>
+                                    )}
+                                </div>
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-semibold mb-3">Social Links</h3>
+                                {localData.profile.socialLinks.map((link, idx) => (
+                                    <div key={link.id} className="flex gap-4 mb-2">
+                                        <input type="text" value={link.platform} onChange={(e) => handleSocialLinkChange(idx, 'platform', e.target.value)} className="bg-gray-700 border-gray-600 rounded p-2 text-white w-1/3" placeholder="Platform" />
+                                        <input type="text" value={link.url} onChange={(e) => handleSocialLinkChange(idx, 'url', e.target.value)} className="bg-gray-700 border-gray-600 rounded p-2 text-white flex-1" placeholder="URL" />
+                                        <button onClick={() => handleRemoveSocialLink(link.id)} className="text-red-400 hover:text-red-300 px-2">&times;</button>
                                     </div>
-                                </div>
-                           )}
-                           
-                           {/* Skills Section */}
-                           {activeTab === 'Skills' && (
-                                <div>
-                                    <h2 className="text-2xl font-semibold mb-4 border-b border-gray-700 pb-2">Skills</h2>
-                                     {localData.skills.map((skill, index) => (
-                                         <div key={skill.id} className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 items-center">
-                                            <div className="md:col-span-2">
-                                                <input type="text" value={skill.name} onChange={e => handleItemChange<Skill>('skills', index, 'name', e.target.value)} className={`bg-gray-700 p-2 rounded-md w-full border ${errors.skills?.[index]?.name ? 'border-red-500' : 'border-transparent'}`}/>
-                                                {errors.skills?.[index]?.name && <p className="text-red-400 text-sm mt-1">{errors.skills[index].name}</p>}
-                                            </div>
-                                            <input type="range" min="0" max="100" value={skill.level} onChange={e => handleItemChange<Skill>('skills', index, 'level', parseInt(e.target.value, 10))} className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"/>
-                                            <div className='flex items-center justify-between'>
-                                               <span className="text-center">{skill.level}%</span>
-                                               <button onClick={() => handleRemoveItem('skills', skill.id)} className="bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">X</button>
-                                            </div>
-                                        </div>
-                                     ))}
-                                     <button onClick={() => handleAddItem('skills')} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md mt-4">Add Skill</button>
-                                </div>
-                           )}
-
-                           {/* Projects Section */}
-                           {activeTab === 'Projects' && (
-                                <div>
-                                    <h2 className="text-2xl font-semibold mb-4 border-b border-gray-700 pb-2">Projects</h2>
-                                     {localData.projects.map((project, index) => (
-                                         <div key={project.id} className="mb-4 p-4 border border-gray-700 rounded-md relative space-y-4">
-                                             <button onClick={() => handleRemoveItem('projects', project.id)} className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs z-10">X</button>
-                                             
-                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                <div>
-                                                     <label className="block text-sm font-medium text-gray-300 mb-1">Project Title</label>
-                                                     <input type="text" placeholder="Title" value={project.title} onChange={e => handleItemChange<Project>('projects', index, 'title', e.target.value)} className={`w-full bg-gray-700 p-2 rounded-md border ${errors.projects?.[index]?.title ? 'border-red-500' : 'border-transparent'}`}/>
-                                                     {errors.projects?.[index]?.title && <p className="text-red-400 text-sm mt-1">{errors.projects[index].title}</p>}
-                                                </div>
-                                                <div>
-                                                    <label className="block text-sm font-medium text-gray-300 mb-1">Live Site Link (optional)</label>
-                                                    <input type="text" placeholder="https://..." value={project.link} onChange={e => handleItemChange<Project>('projects', index, 'link', e.target.value)} className="w-full bg-gray-700 p-2 rounded-md border border-transparent"/>
-                                                </div>
-                                                <div>
-                                                    <label className="block text-sm font-medium text-gray-300 mb-1">Source Code Link (optional)</label>
-                                                    <input type="text" placeholder="https://github.com/..." value={project.repoLink} onChange={e => handleItemChange<Project>('projects', index, 'repoLink', e.target.value)} className="w-full bg-gray-700 p-2 rounded-md border border-transparent"/>
-                                                </div>
-                                                 <div>
-                                                    <label className="block text-sm font-medium text-gray-300 mb-1">Demo Video URL (optional)</label>
-                                                    <input type="text" placeholder="https://youtube.com/..." value={project.videoUrl} onChange={e => handleItemChange<Project>('projects', index, 'videoUrl', e.target.value)} className="w-full bg-gray-700 p-2 rounded-md border border-transparent"/>
-                                                </div>
-                                             </div>
-                
-                                             <div>
-                                                <label className="block text-sm font-medium text-gray-300 mb-1">Short Description</label>
-                                                <textarea placeholder="A brief summary for the project card." value={project.description} onChange={e => handleItemChange<Project>('projects', index, 'description', e.target.value)} rows={2} className={`w-full bg-gray-700 p-2 rounded-md border ${errors.projects?.[index]?.description ? 'border-red-500' : 'border-transparent'}`}/>
-                                                {errors.projects?.[index]?.description && <p className="text-red-400 text-sm mt-1">{errors.projects[index].description}</p>}
-                                             </div>
-                
-                                             <div>
-                                                <label className="block text-sm font-medium text-gray-300 mb-1">Detailed Description</label>
-                                                <textarea placeholder="A full description for the project details view." value={project.longDescription} onChange={e => handleItemChange<Project>('projects', index, 'longDescription', e.target.value)} rows={5} className={`w-full bg-gray-700 p-2 rounded-md border ${errors.projects?.[index]?.longDescription ? 'border-red-500' : 'border-transparent'}`}/>
-                                                {errors.projects?.[index]?.longDescription && <p className="text-red-400 text-sm mt-1">{errors.projects[index].longDescription}</p>}
-                                             </div>
-
-                                             <div>
-                                                <label className="block text-sm font-medium text-gray-300 mb-1">Key Learning / Challenge</label>
-                                                <textarea placeholder="What was the biggest challenge or key learning from this project?" value={project.keyLearning} onChange={e => handleItemChange<Project>('projects', index, 'keyLearning', e.target.value)} rows={3} className={`w-full bg-gray-700 p-2 rounded-md border ${errors.projects?.[index]?.keyLearning ? 'border-red-500' : 'border-transparent'}`}/>
-                                                {errors.projects?.[index]?.keyLearning && <p className="text-red-400 text-sm mt-1">{errors.projects[index].keyLearning}</p>}
-                                             </div>
-                                            
-                                             <div>
-                                                <label className="block text-sm font-medium text-gray-300 mb-1">Technologies</label>
-                                                <TagInput
-                                                    tags={project.technologies}
-                                                    setTags={(newTechs) => handleItemChange<Project>('projects', index, 'technologies', newTechs)}
-                                                    placeholder="Add a technology and press Enter"
-                                                    className={errors.projects?.[index]?.technologies ? 'border-red-500' : 'border-transparent'}
-                                                />
-                                                {errors.projects?.[index]?.technologies && <p className="text-red-400 text-sm mt-1">{errors.projects[index].technologies}</p>}
-                                             </div>
-                                             
-                                             <div>
-                                                <label className="block text-sm font-medium text-gray-300 mb-1">Image Gallery</label>
-                                                <div className="flex flex-wrap gap-2 mb-2">
-                                                    {project.imageGallery.map((img, imgIndex) => (
-                                                        <div key={imgIndex} className="relative">
-                                                            <img src={img} alt={`project gallery item ${imgIndex+1}`} className="w-24 h-24 object-cover rounded"/>
-                                                            <button onClick={() => removeProjectGalleryImage(index, imgIndex)} className="absolute top-0 right-0 bg-red-600/80 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">&times;</button>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                                <input type="file" accept="image/*" multiple onChange={(e) => handleProjectGalleryChange(e, index)} className="w-full bg-gray-700 p-2 rounded-md file:mr-4 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100"/>
-                                             </div>
-                
-                                         </div>
-                                     ))}
-                                     <button onClick={() => handleAddItem('projects')} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md mt-4">Add Project</button>
-                                </div>
-                           )}
-
-                           {/* Memories Section */}
-                           {activeTab === 'Memories' && (
-                                <div>
-                                    <h2 className="text-2xl font-semibold mb-4 border-b border-gray-700 pb-2">Memories Gallery</h2>
-                                    <div className='mb-6'>
-                                        <label className="block mb-2 text-lg">Upload New Photos</label>
-                                        <input type="file" accept="image/*" multiple onChange={handleMemoryUpload} className="w-full bg-gray-700 p-2 rounded-md file:mr-4 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100"/>
-                                    </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                                        {localData.memories.map((memory, index) => (
-                                            <div key={memory.id} className="bg-gray-700 p-3 rounded-md relative group">
-                                                <img src={memory.image} alt={memory.caption || `Memory ${index+1}`} className="w-full h-40 object-cover rounded-md mb-2" />
-                                                <textarea
-                                                    placeholder="Add a caption..."
-                                                    value={memory.caption}
-                                                    onChange={e => handleItemChange<Memory>('memories', index, 'caption', e.target.value)}
-                                                    rows={2}
-                                                    className="w-full bg-gray-600 p-2 rounded-md text-sm"
-                                                />
-                                                <button onClick={() => handleRemoveItem('memories', memory.id)} className="absolute top-1 right-1 bg-red-600/80 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity">&times;</button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    {localData.memories.length === 0 && <p>No memories uploaded yet. Add some photos to get started!</p>}
-                                </div>
-                           )}
-
-                           {/* Education Section */}
-                           {activeTab === 'Education' && (
-                                <div>
-                                    <h2 className="text-2xl font-semibold mb-4 border-b border-gray-700 pb-2">Education</h2>
-                                    {localData.education.map((edu, index) => (
-                                        <div key={edu.id} className="mb-4 p-4 border border-gray-700 rounded-md relative">
-                                            <button onClick={() => handleRemoveItem('education', edu.id)} className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">X</button>
-                                            <input type="text" placeholder="Degree" value={edu.degree} onChange={e => handleItemChange<Education>('education', index, 'degree', e.target.value)} className={`w-full bg-gray-700 p-2 rounded-md mb-2 border ${errors.education?.[index]?.degree ? 'border-red-500' : 'border-transparent'}`} />
-                                            {errors.education?.[index]?.degree && <p className="text-red-400 text-sm mb-1">{errors.education[index].degree}</p>}
-                                            <input type="text" placeholder="Institution" value={edu.institution} onChange={e => handleItemChange<Education>('education', index, 'institution', e.target.value)} className={`w-full bg-gray-700 p-2 rounded-md mb-2 border ${errors.education?.[index]?.institution ? 'border-red-500' : 'border-transparent'}`} />
-                                            {errors.education?.[index]?.institution && <p className="text-red-400 text-sm mb-1">{errors.education[index].institution}</p>}
-                                            <input type="text" placeholder="Period (e.g., 2020 - 2024)" value={edu.period} onChange={e => handleItemChange<Education>('education', index, 'period', e.target.value)} className={`w-full bg-gray-700 p-2 rounded-md mb-2 border ${errors.education?.[index]?.period ? 'border-red-500' : 'border-transparent'}`} />
-                                            {errors.education?.[index]?.period && <p className="text-red-400 text-sm mb-1">{errors.education[index].period}</p>}
-                                            <textarea placeholder="Details" value={edu.details} onChange={e => handleItemChange<Education>('education', index, 'details', e.target.value)} className={`w-full bg-gray-700 p-2 rounded-md border ${errors.education?.[index]?.details ? 'border-red-500' : 'border-transparent'}`} />
-                                            {errors.education?.[index]?.details && <p className="text-red-400 text-sm mt-1">{errors.education[index].details}</p>}
-                                        </div>
-                                    ))}
-                                    <button onClick={() => handleAddItem('education')} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md mt-4">Add Education</button>
-                                </div>
-                           )}
-
-                           {/* Experience Section */}
-                           {activeTab === 'Experience' && (
-                                <div>
-                                    <h2 className="text-2xl font-semibold mb-4 border-b border-gray-700 pb-2">Experience</h2>
-                                    {localData.experience.map((exp, index) => (
-                                         <div key={exp.id} className="mb-4 p-4 border border-gray-700 rounded-md relative">
-                                            <button onClick={() => handleRemoveItem('experience', exp.id)} className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">X</button>
-                                            <input type="text" placeholder="Role" value={exp.role} onChange={e => handleItemChange<Experience>('experience', index, 'role', e.target.value)} className={`w-full bg-gray-700 p-2 rounded-md mb-2 border ${errors.experience?.[index]?.role ? 'border-red-500' : 'border-transparent'}`} />
-                                            {errors.experience?.[index]?.role && <p className="text-red-400 text-sm mb-1">{errors.experience[index].role}</p>}
-                                            <input type="text" placeholder="Organization" value={exp.organization} onChange={e => handleItemChange<Experience>('experience', index, 'organization', e.target.value)} className={`w-full bg-gray-700 p-2 rounded-md mb-2 border ${errors.experience?.[index]?.organization ? 'border-red-500' : 'border-transparent'}`} />
-                                            {errors.experience?.[index]?.organization && <p className="text-red-400 text-sm mb-1">{errors.experience[index].organization}</p>}
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
-                                                <div>
-                                                    <input type="text" placeholder="Start Date (e.g., Aug 2023)" value={exp.startDate} onChange={e => handleItemChange<Experience>('experience', index, 'startDate', e.target.value)} className={`w-full bg-gray-700 p-2 rounded-md border ${errors.experience?.[index]?.startDate ? 'border-red-500' : 'border-transparent'}`} />
-                                                    {errors.experience?.[index]?.startDate && <p className="text-red-400 text-sm mt-1">{errors.experience[index].startDate}</p>}
-                                                </div>
-                                                <div>
-                                                    <input type="text" placeholder="End Date (e.g., Present)" value={exp.endDate} onChange={e => handleItemChange<Experience>('experience', index, 'endDate', e.target.value)} className={`w-full bg-gray-700 p-2 rounded-md border ${errors.experience?.[index]?.endDate ? 'border-red-500' : 'border-transparent'}`} />
-                                                    {errors.experience?.[index]?.endDate && <p className="text-red-400 text-sm mt-1">{errors.experience[index].endDate}</p>}
-                                                </div>
-                                            </div>
-                                            <textarea placeholder="Description" value={exp.description} onChange={e => handleItemChange<Experience>('experience', index, 'description', e.target.value)} className={`w-full bg-gray-700 p-2 rounded-md border ${errors.experience?.[index]?.description ? 'border-red-500' : 'border-transparent'}`} />
-                                            {errors.experience?.[index]?.description && <p className="text-red-400 text-sm mt-1">{errors.experience[index].description}</p>}
-                                        </div>
-                                    ))}
-                                    <button onClick={() => handleAddItem('experience')} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md mt-4">Add Experience</button>
-                                </div>
-                           )}
-
-                           {/* Notes Section */}
-                           {activeTab === 'Notes' && (
-                                <div>
-                                    <h2 className="text-2xl font-semibold mb-4 border-b border-gray-700 pb-2">Notes & Documents</h2>
-                                    
-                                    <div className="bg-gray-700/50 p-4 rounded-lg mb-6">
-                                        <h3 className="text-xl font-semibold mb-4">Upload New Note</h3>
-                                        <form onSubmit={handleAddNote} className="space-y-4">
-                                            <div>
-                                                <label className="block mb-1">Note Title</label>
-                                                <input 
-                                                    type="text" 
-                                                    value={newNote.title} 
-                                                    onChange={e => setNewNote(prev => ({ ...prev, title: e.target.value }))}
-                                                    className="w-full bg-gray-700 p-2 rounded-md"
-                                                    placeholder="e.g., Microprocessor Architecture Cheatsheet"
-                                                    required
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block mb-1">Description</label>
-                                                <textarea 
-                                                    value={newNote.description} 
-                                                    onChange={e => setNewNote(prev => ({ ...prev, description: e.target.value }))}
-                                                    rows={3} 
-                                                    className="w-full bg-gray-700 p-2 rounded-md"
-                                                    placeholder="A brief description of the document."
-                                                    required
-                                                ></textarea>
-                                            </div>
-                                            <div>
-                                                <label className="block mb-1">File</label>
-                                                <input 
-                                                    type="file" 
-                                                    onChange={handleNoteFileChange}
-                                                    className="w-full bg-gray-700 p-2 rounded-md file:mr-4 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100"
-                                                    required
-                                                />
-                                            </div>
-                                            <button type="submit" disabled={uploadingNote} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition-colors disabled:bg-gray-500">
-                                                {uploadingNote ? 'Uploading...' : 'Add Note'}
-                                            </button>
-                                        </form>
-                                    </div>
-
-                                    <div>
-                                        <h3 className="text-xl font-semibold mb-4">Manage Notes</h3>
-                                        <div className="space-y-3">
-                                            {localData.notes && localData.notes.length > 0 ? localData.notes.map(note => (
-                                                <div key={note.id} className="bg-gray-700 p-3 rounded-md flex justify-between items-center">
-                                                    <div>
-                                                        <p className="font-semibold text-accent">{note.title}</p>
-                                                        <p className="text-sm text-gray-400 mt-1">{note.fileName} - {note.description}</p>
-                                                    </div>
-                                                    <button 
-                                                        onClick={() => handleRemoveItem('notes', note.id)}
-                                                        className="bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded-md text-xs transition-colors"
-                                                    >
-                                                        Delete
-                                                    </button>
-                                                </div>
-                                            )) : (
-                                                <p>No notes have been uploaded yet.</p>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                           )}
-
-                           {/* Chat Section */}
-                           {activeTab === 'Public Chat' && (
-                                <div>
-                                    <h2 className="text-2xl font-semibold mb-4 border-b border-gray-700 pb-2">Public Chat Room</h2>
-                                    <div className="bg-gray-900 border border-gray-700 rounded-lg p-4 mb-4 h-96 overflow-y-auto flex flex-col-reverse">
-                                        {guestbookEntries.length > 0 ? guestbookEntries.map(entry => (
-                                            <div key={entry.id} className={`mb-3 flex ${entry.userId === 'Admin' ? 'justify-end' : 'justify-start'}`}>
-                                                <div className={`max-w-[80%] rounded-lg p-3 ${entry.userId === 'Admin' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-200'}`}>
-                                                    <div className="flex justify-between items-baseline mb-1">
-                                                        <span className="font-bold text-sm mr-2">{entry.userId}</span>
-                                                        <span className="text-xs opacity-60">{new Date(entry.timestamp).toLocaleTimeString()}</span>
-                                                    </div>
-                                                    <p>{entry.message}</p>
-                                                    <button 
-                                                        onClick={async () => {
-                                                            if(window.confirm('Delete this message?')) {
-                                                                await removeGuestbook(entry.id);
-                                                                fetchGuestbookData();
-                                                            }
-                                                        }}
-                                                        className="text-xs text-red-400 hover:text-red-300 mt-2 underline"
-                                                    >
-                                                        Delete
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )) : <p className="text-center text-gray-500">No messages found.</p>}
-                                    </div>
-                                    
-                                    <form onSubmit={handleAdminChatSubmit} className="flex gap-2">
-                                        <input 
-                                            type="text" 
-                                            value={adminReply} 
-                                            onChange={(e) => setAdminReply(e.target.value)} 
-                                            placeholder="Reply as Admin..." 
-                                            className="flex-1 bg-gray-700 border-none rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500"
-                                        />
-                                        <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-md">Send</button>
-                                    </form>
-                                </div>
-                           )}
-
-                           {/* Moderation Section */}
-                           {activeTab === 'Moderation' && (
-                                <div>
-                                    <h2 className="text-2xl font-semibold mb-4 border-b border-gray-700 pb-2">Reported Messages</h2>
-                                    <div className="max-h-96 overflow-y-auto space-y-2">
-                                        {reports.length > 0 ? reports.map(report => (
-                                            <div key={report.id} className="bg-gray-700 p-3 rounded-md">
-                                                <div className="flex justify-between items-start">
-                                                    <div>
-                                                        <p className="font-semibold text-accent">{report.messageAuthor} <span className="text-xs text-gray-400 font-normal ml-2">Reported at: {new Date(report.timestamp).toLocaleString()}</span></p>
-                                                        <p className="mt-1 text-gray-300 bg-gray-900/50 p-2 rounded-md my-2">{report.messageContent}</p>
-                                                    </div>
-                                                    <div className="flex flex-col space-y-2">
-                                                        <button 
-                                                            onClick={async () => {
-                                                                if(window.confirm('This will permanently delete the message. Are you sure?')) {
-                                                                    await removeGuestbook(report.messageId);
-                                                                    await removeReport(report.id);
-                                                                    fetchReportData();
-                                                                }
-                                                            }}
-                                                            className="bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded-md text-xs transition-colors"
-                                                        >
-                                                            Delete Msg
-                                                        </button>
-                                                        <button 
-                                                            onClick={async () => {
-                                                                await removeReport(report.id);
-                                                                fetchReportData();
-                                                            }}
-                                                            className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-1 px-2 rounded-md text-xs transition-colors"
-                                                        >
-                                                            Dismiss
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )) : <p>No reported messages.</p>}
-                                    </div>
-                                </div>
-                           )}
-
-                           {/* Contact Leads Section */}
-                           {activeTab === 'Contact Leads' && (
-                                <div>
-                                    <h2 className="text-2xl font-semibold mb-4 border-b border-gray-700 pb-2">Contact Leads</h2>
-                                    <div className="max-h-96 overflow-y-auto">
-                                         {leads.length > 0 ? (
-                                            <table className="w-full text-left">
-                                                <thead className="bg-gray-700">
-                                                    <tr>
-                                                        <th className="p-2">Date</th>
-                                                        <th className="p-2">Name</th>
-                                                        <th className="p-2">Email</th>
-                                                        <th className="p-2">Message</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {leads.map(lead => (
-                                                        <tr key={lead.id} className="border-b border-gray-700">
-                                                            <td className="p-2 text-sm">{new Date(lead.timestamp).toLocaleDateString()}</td>
-                                                            <td className="p-2">{lead.name}</td>
-                                                            <td className="p-2">{lead.email}</td>
-                                                            <td className="p-2 text-sm">{lead.message}</td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                         ) : <p>No contact leads have been received.</p>}
-                                    </div>
-                                </div>
-                           )}
-
-                           {/* User Management Section */}
-                            {activeTab === 'User Management' && (
-                                <div>
-                                    <h2 className="text-2xl font-semibold mb-4 border-b border-gray-700 pb-2">User Management</h2>
-                                    <p className="text-sm text-gray-400 mb-4">
-                                        This table lists all registered users. User data is stored locally in the browser's IndexedDB.
-                                    </p>
-                                    <div className="max-h-96 overflow-y-auto">
-                                        {users.length > 0 ? (
-                                            <table className="w-full text-left">
-                                                <thead className="bg-gray-700">
-                                                    <tr>
-                                                        <th className="p-2">User ID</th>
-                                                        <th className="p-2 text-right">Actions</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {users.map(user => (
-                                                        <tr key={user.id} className="border-b border-gray-700">
-                                                            <td className="p-2 font-mono">{user.id}</td>
-                                                            <td className="p-2 text-right">
-                                                                <button 
-                                                                    onClick={async () => {
-                                                                        if(window.confirm(`Are you sure you want to delete user "${user.id}"? This action cannot be undone.`)) {
-                                                                            await removeUser(user.id);
-                                                                            fetchUsersData(); // Refresh the list
-                                                                        }
-                                                                    }}
-                                                                    className="bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded-md text-xs transition-colors"
-                                                                >
-                                                                    Delete
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        ) : <p>No users have signed up yet.</p>}
-                                    </div>
-                                </div>
-                            )}
-
-                           {/* Settings Section */}
-                           {activeTab === 'Settings' && (
-                                <div>
-                                     <h2 className="text-2xl font-semibold mb-4 border-b border-gray-700 pb-2">Settings</h2>
-                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                        <div>
-                                            <h3 className="text-xl font-semibold mb-4">Change Password</h3>
-                                            {passwordMessage.text && (
-                                                <p className={`${passwordMessage.type === 'error' ? 'bg-red-500/20 text-red-300' : 'bg-green-500/20 text-green-300'} p-3 rounded-md mb-4`}>
-                                                    {passwordMessage.text}
-                                                </p>
-                                            )}
-                                            <form onSubmit={handleChangePassword} className="space-y-4">
-                                                <div>
-                                                    <label className="block mb-1">Old Password</label>
-                                                    <input type="password" value={oldPassword} onChange={e => setOldPassword(e.target.value)} className="w-full bg-gray-700 p-2 rounded-md" autoComplete="current-password"/>
-                                                </div>
-                                                <div>
-                                                    <label className="block mb-1">New Password</label>
-                                                    <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="w-full bg-gray-700 p-2 rounded-md" autoComplete="new-password"/>
-                                                </div>
-                                                <div>
-                                                    <label className="block mb-1">Confirm New Password</label>
-                                                    <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="w-full bg-gray-700 p-2 rounded-md" autoComplete="new-password"/>
-                                                </div>
-                                                <button type="submit" className="bg-secondary hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition-colors">
-                                                    Update Password
-                                                </button>
-                                            </form>
-                                        </div>
-                    
-                                        <div>
-                                            <h3 className="text-xl font-semibold mb-4">Security Question</h3>
-                                            {securityMessage.text && (
-                                                <p className={`${securityMessage.type === 'error' ? 'bg-red-500/20 text-red-300' : 'bg-green-500/20 text-green-300'} p-3 rounded-md mb-4`}>
-                                                    {securityMessage.text}
-                                                </p>
-                                            )}
-                                            <form onSubmit={handleSecurityUpdate} className="space-y-4">
-                                                <div>
-                                                    <label className="block mb-1">Question</label>
-                                                    <input type="text" value={securityQuestion} onChange={e => setSecurityQuestion(e.target.value)} className="w-full bg-gray-700 p-2 rounded-md"/>
-                                                </div>
-                                                <div>
-                                                    <label className="block mb-1">Answer</label>
-                                                    <input type="text" value={securityAnswer} onChange={e => setSecurityAnswer(e.target.value)} className="w-full bg-gray-700 p-2 rounded-md"/>
-                                                </div>
-                                                <button type="submit" className="bg-secondary hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition-colors">
-                                                    Update Security Question
-                                                </button>
-                                            </form>
-                                        </div>
-                                    </div>
-                                </div>
-                           )}
+                                ))}
+                                <button onClick={handleAddSocialLink} className="text-accent hover:text-white text-sm mt-2">+ Add Social Link</button>
+                            </div>
                         </div>
-                    </main>
+                    )}
+
+                    {activeTab === 'Skills' && (
+                        <div>
+                            {localData.skills.map((skill, index) => (
+                                <div key={skill.id} className="flex gap-4 mb-4 bg-gray-800 p-4 rounded items-center">
+                                    <input type="text" value={skill.name} onChange={(e) => handleItemChange('skills', index, 'name', e.target.value)} className="bg-gray-700 border-gray-600 rounded p-2 text-white flex-1" />
+                                    <input type="number" min="0" max="100" value={skill.level} onChange={(e) => handleItemChange('skills', index, 'level', parseInt(e.target.value))} className="bg-gray-700 border-gray-600 rounded p-2 text-white w-20" />
+                                    <button onClick={() => handleRemoveItem('skills', skill.id)} className="bg-red-500/20 text-red-400 p-2 rounded hover:bg-red-500/30">Delete</button>
+                                </div>
+                            ))}
+                            <button onClick={() => handleAddItem('skills')} className="bg-accent text-white px-4 py-2 rounded hover:bg-highlight">Add Skill</button>
+                        </div>
+                    )}
+
+                    {activeTab === 'Projects' && (
+                        <div className="space-y-8">
+                            {localData.projects.map((project, index) => (
+                                <div key={project.id} className="bg-gray-800 p-6 rounded-lg border border-gray-700">
+                                    <div className="flex justify-between mb-4">
+                                        <h3 className="text-lg font-bold text-accent">Project {index + 1}</h3>
+                                        <button onClick={() => handleRemoveItem('projects', project.id)} className="text-red-400 hover:text-red-300">Delete Project</button>
+                                    </div>
+                                    <div className="grid grid-cols-1 gap-4">
+                                        <input type="text" value={project.title} onChange={(e) => handleItemChange('projects', index, 'title', e.target.value)} placeholder="Project Title" className="bg-gray-700 border-gray-600 rounded p-2 text-white" />
+                                        <textarea value={project.description} onChange={(e) => handleItemChange('projects', index, 'description', e.target.value)} placeholder="Short Description" className="bg-gray-700 border-gray-600 rounded p-2 text-white" rows={2} />
+                                        <textarea value={project.longDescription} onChange={(e) => handleItemChange('projects', index, 'longDescription', e.target.value)} placeholder="Detailed Description (Markdown supported)" className="bg-gray-700 border-gray-600 rounded p-2 text-white" rows={4} />
+                                        <textarea value={project.keyLearning} onChange={(e) => handleItemChange('projects', index, 'keyLearning', e.target.value)} placeholder="Key Learning" className="bg-gray-700 border-gray-600 rounded p-2 text-white" rows={2} />
+                                        
+                                        <div>
+                                            <label className="block text-sm text-gray-400 mb-1">Technologies</label>
+                                            <TagInput tags={project.technologies} setTags={(newTags) => handleItemChange('projects', index, 'technologies', newTags)} />
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <input type="text" value={project.link || ''} onChange={(e) => handleItemChange('projects', index, 'link', e.target.value)} placeholder="Live Link URL" className="bg-gray-700 border-gray-600 rounded p-2 text-white" />
+                                            <input type="text" value={project.repoLink || ''} onChange={(e) => handleItemChange('projects', index, 'repoLink', e.target.value)} placeholder="Repository URL" className="bg-gray-700 border-gray-600 rounded p-2 text-white" />
+                                        </div>
+                                        <input type="text" value={project.videoUrl || ''} onChange={(e) => handleItemChange('projects', index, 'videoUrl', e.target.value)} placeholder="YouTube Video URL" className="bg-gray-700 border-gray-600 rounded p-2 text-white" />
+                                        
+                                        <div>
+                                            <label className="block text-sm text-gray-400 mb-2">Image Gallery</label>
+                                            <div className="flex flex-wrap gap-2 mb-2">
+                                                {project.imageGallery.map((img, i) => (
+                                                    <div key={i} className="relative w-24 h-24">
+                                                        <img src={img} alt="" className="w-full h-full object-cover rounded" />
+                                                        <button onClick={() => removeProjectGalleryImage(index, i)} className="absolute top-0 right-0 bg-red-600 text-white w-5 h-5 flex items-center justify-center rounded-full text-xs hover:bg-red-700">&times;</button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <input type="file" multiple accept="image/*" onChange={(e) => handleProjectGalleryChange(e, index)} className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-accent file:text-white hover:file:bg-highlight"/>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                            <button onClick={() => handleAddItem('projects')} className="bg-accent text-white px-4 py-2 rounded hover:bg-highlight">Add New Project</button>
+                        </div>
+                    )}
+
+                     {activeTab === 'Experience' && (
+                        <div>
+                             {localData.experience.map((exp, index) => (
+                                <div key={exp.id} className="bg-gray-800 p-6 rounded-lg border border-gray-700 mb-4">
+                                    <div className="grid grid-cols-2 gap-4 mb-2">
+                                        <input type="text" value={exp.role} onChange={(e) => handleItemChange('experience', index, 'role', e.target.value)} placeholder="Role" className="bg-gray-700 border-gray-600 rounded p-2 text-white" />
+                                        <input type="text" value={exp.organization} onChange={(e) => handleItemChange('experience', index, 'organization', e.target.value)} placeholder="Organization" className="bg-gray-700 border-gray-600 rounded p-2 text-white" />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4 mb-2">
+                                        <input type="text" value={exp.startDate} onChange={(e) => handleItemChange('experience', index, 'startDate', e.target.value)} placeholder="Start Date" className="bg-gray-700 border-gray-600 rounded p-2 text-white" />
+                                        <input type="text" value={exp.endDate} onChange={(e) => handleItemChange('experience', index, 'endDate', e.target.value)} placeholder="End Date" className="bg-gray-700 border-gray-600 rounded p-2 text-white" />
+                                    </div>
+                                    <textarea value={exp.description} onChange={(e) => handleItemChange('experience', index, 'description', e.target.value)} placeholder="Description" className="w-full bg-gray-700 border-gray-600 rounded p-2 text-white mb-2" rows={3} />
+                                    <button onClick={() => handleRemoveItem('experience', exp.id)} className="text-red-400 hover:text-red-300 text-sm">Remove Entry</button>
+                                </div>
+                            ))}
+                            <button onClick={() => handleAddItem('experience')} className="bg-accent text-white px-4 py-2 rounded hover:bg-highlight">Add Experience</button>
+                        </div>
+                    )}
+
+                    {activeTab === 'Education' && (
+                        <div>
+                             {localData.education.map((edu, index) => (
+                                <div key={edu.id} className="bg-gray-800 p-6 rounded-lg border border-gray-700 mb-4">
+                                    <div className="grid grid-cols-2 gap-4 mb-2">
+                                        <input type="text" value={edu.degree} onChange={(e) => handleItemChange('education', index, 'degree', e.target.value)} placeholder="Degree" className="bg-gray-700 border-gray-600 rounded p-2 text-white" />
+                                        <input type="text" value={edu.institution} onChange={(e) => handleItemChange('education', index, 'institution', e.target.value)} placeholder="Institution" className="bg-gray-700 border-gray-600 rounded p-2 text-white" />
+                                    </div>
+                                    <div className="mb-2">
+                                        <input type="text" value={edu.period} onChange={(e) => handleItemChange('education', index, 'period', e.target.value)} placeholder="Period (e.g. 2020 - 2024)" className="w-full bg-gray-700 border-gray-600 rounded p-2 text-white" />
+                                    </div>
+                                    <textarea value={edu.details} onChange={(e) => handleItemChange('education', index, 'details', e.target.value)} placeholder="Details" className="w-full bg-gray-700 border-gray-600 rounded p-2 text-white mb-2" rows={2} />
+                                    <button onClick={() => handleRemoveItem('education', edu.id)} className="text-red-400 hover:text-red-300 text-sm">Remove Entry</button>
+                                </div>
+                            ))}
+                            <button onClick={() => handleAddItem('education')} className="bg-accent text-white px-4 py-2 rounded hover:bg-highlight">Add Education</button>
+                        </div>
+                    )}
+
+                     {activeTab === 'Memories' && (
+                        <div>
+                             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                                {localData.memories.map((mem, index) => (
+                                    <div key={mem.id} className="relative group">
+                                        <img src={mem.image} alt="Memory" className="w-full h-40 object-cover rounded-lg" />
+                                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2 rounded-lg">
+                                            <button onClick={() => handleRemoveItem('memories', mem.id)} className="self-end text-red-400 font-bold">&times;</button>
+                                            <input type="text" value={mem.caption || ''} onChange={(e) => handleItemChange('memories', index, 'caption', e.target.value)} placeholder="Caption" className="bg-transparent border-b border-gray-400 text-white text-sm focus:outline-none" />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            <label className="bg-accent text-white px-4 py-2 rounded cursor-pointer hover:bg-highlight">
+                                Upload Photos
+                                <input type="file" multiple accept="image/*" onChange={handleMemoryUpload} className="hidden" />
+                            </label>
+                        </div>
+                    )}
+
+                    {activeTab === 'Notes' && (
+                         <div className="space-y-6">
+                            <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
+                                <h3 className="text-lg font-bold mb-4">Add New Resource</h3>
+                                <form onSubmit={handleAddNote} className="space-y-4">
+                                    <input type="text" placeholder="Title" value={newNote.title} onChange={e => setNewNote({...newNote, title: e.target.value})} className="w-full bg-gray-700 border-gray-600 rounded p-2 text-white" />
+                                    <textarea placeholder="Description" value={newNote.description} onChange={e => setNewNote({...newNote, description: e.target.value})} className="w-full bg-gray-700 border-gray-600 rounded p-2 text-white" rows={2}></textarea>
+                                    <input id="note-file-input" type="file" onChange={handleNoteFileChange} className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-accent file:text-white hover:file:bg-highlight"/>
+                                    <button type="submit" disabled={uploadingNote} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50">
+                                        {uploadingNote ? 'Uploading...' : 'Add Note'}
+                                    </button>
+                                </form>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {localData.notes.map((note) => (
+                                    <div key={note.id} className="bg-gray-800 p-4 rounded border border-gray-700 flex justify-between items-start">
+                                        <div>
+                                            <h4 className="font-bold text-white">{note.title}</h4>
+                                            <p className="text-sm text-gray-400 mb-1">{note.fileName}</p>
+                                            <p className="text-xs text-gray-500">{note.description}</p>
+                                        </div>
+                                        <button onClick={() => handleRemoveItem('notes', note.id)} className="text-red-400 hover:text-red-300">&times;</button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    
+                    {activeTab === 'Public Chat' && (
+                         <div className="space-y-4">
+                             {guestbookEntries.map(entry => (
+                                 <div key={entry.id} className={`p-4 rounded-lg border ${entry.userId === 'Admin' ? 'bg-blue-900/20 border-blue-800' : 'bg-gray-800 border-gray-700'}`}>
+                                     <div className="flex justify-between items-start mb-2">
+                                         <span className={`font-bold ${entry.userId === 'Admin' ? 'text-blue-400' : 'text-accent'}`}>{entry.userId}</span>
+                                         <span className="text-xs text-gray-500">{new Date(entry.timestamp).toLocaleString()}</span>
+                                     </div>
+                                     <p className="text-gray-300 whitespace-pre-wrap">{entry.message}</p>
+                                     <div className="mt-3 flex gap-2">
+                                         <button onClick={() => setAdminReply(`@${entry.userId} `)} className="text-xs text-gray-400 hover:text-white">Reply</button>
+                                         <button onClick={() => handleDeleteGuestbook(entry.id)} className="text-xs text-red-400 hover:text-red-300">Delete</button>
+                                     </div>
+                                 </div>
+                             ))}
+                             
+                             <div className="sticky bottom-0 bg-gray-800 p-4 border-t border-gray-700 mt-4 flex gap-2">
+                                 <input type="text" value={adminReply} onChange={(e) => setAdminReply(e.target.value)} placeholder="Type a reply..." className="flex-1 bg-gray-700 border-gray-600 rounded p-2 text-white" />
+                                 <button onClick={() => handleReplyToGuestbook(guestbookEntries[0])} className="bg-blue-600 px-4 py-2 rounded text-white hover:bg-blue-700">Send</button>
+                             </div>
+                         </div>
+                    )}
+
+                    {activeTab === 'Contact Leads' && (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-gray-800 text-gray-400 border-b border-gray-700">
+                                        <th className="p-3">Date</th>
+                                        <th className="p-3">Name</th>
+                                        <th className="p-3">Email</th>
+                                        <th className="p-3">Message</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {leads.map(lead => (
+                                        <tr key={lead.id} className="border-b border-gray-700 hover:bg-gray-800/50">
+                                            <td className="p-3 text-sm text-gray-400">{new Date(lead.timestamp).toLocaleDateString()}</td>
+                                            <td className="p-3 text-white">{lead.name}</td>
+                                            <td className="p-3 text-accent">{lead.email}</td>
+                                            <td className="p-3 text-gray-300">{lead.message}</td>
+                                        </tr>
+                                    ))}
+                                    {leads.length === 0 && <tr><td colSpan={4} className="p-4 text-center text-gray-500">No leads yet.</td></tr>}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                    
+                    {activeTab === 'Moderation' && (
+                         <div className="space-y-4">
+                             {reports.length === 0 && <p className="text-gray-500 text-center">No reports filed.</p>}
+                             {reports.map(report => (
+                                 <div key={report.id} className="bg-red-900/10 border border-red-900/30 p-4 rounded-lg">
+                                     <h4 className="text-red-400 font-bold mb-1">Reported Message</h4>
+                                     <div className="bg-gray-900 p-3 rounded mb-3 text-sm">
+                                         <p className="text-gray-400 mb-1">Author: <span className="text-white">{report.messageAuthor}</span></p>
+                                         <p className="text-white italic">"{report.messageContent}"</p>
+                                     </div>
+                                     <div className="flex gap-3">
+                                         <button onClick={() => handleDeleteGuestbook(report.messageId)} className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700">Delete Message</button>
+                                         <button onClick={() => handleDeleteReport(report.id)} className="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700">Dismiss Report</button>
+                                     </div>
+                                 </div>
+                             ))}
+                         </div>
+                    )}
+
+                    {activeTab === 'User Management' && (
+                        <div className="space-y-4">
+                            <h3 className="text-lg font-bold mb-4">Registered Users</h3>
+                            <div className="bg-gray-800 rounded-lg overflow-hidden">
+                                {users.map(user => (
+                                    <div key={user.id} className="p-4 border-b border-gray-700 flex justify-between items-center last:border-0">
+                                        <span className="text-white font-mono">{user.id}</span>
+                                        <button onClick={() => handleBanUser(user.id)} className="text-red-400 hover:text-red-300 text-sm border border-red-900/50 px-3 py-1 rounded hover:bg-red-900/20">Ban / Delete</button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                 </div>
-            </div>
+            </main>
         </div>
     );
 };
 
-
 const AdminView: React.FC = () => {
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
 
     useEffect(() => {
-        const authStatus = localStorage.getItem(STORAGE_KEY_AUTH);
-        if (authStatus === 'true') {
-            setIsLoggedIn(true);
+        const auth = localStorage.getItem(STORAGE_KEY_AUTH);
+        if (auth === 'true') {
+            setIsAuthenticated(true);
         }
     }, []);
 
     const handleLogin = () => {
-        setIsLoggedIn(true);
+        setIsAuthenticated(true);
     };
-    
+
     const handleLogout = () => {
         localStorage.removeItem(STORAGE_KEY_AUTH);
-        setIsLoggedIn(false);
-    }
+        setIsAuthenticated(false);
+    };
 
-    if (!isLoggedIn) {
+    if (!isAuthenticated) {
         return <LoginForm onLogin={handleLogin} />;
     }
 
-    return <AdminDashboard onLogout={handleLogout}/>;
+    return <AdminDashboard onLogout={handleLogout} />;
 };
 
 export default AdminView;

@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import type { Project } from '../types';
+import { generateProjectInsight } from '../services/geminiService';
 
 interface ProjectDetailModalProps {
     project: Project;
@@ -9,6 +10,8 @@ interface ProjectDetailModalProps {
 
 const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ project, onClose }) => {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const [aiInsight, setAiInsight] = useState<string>('');
+    const [loadingInsight, setLoadingInsight] = useState(false);
 
     // Handle keyboard events for closing the modal (Escape key) and navigating gallery
     useEffect(() => {
@@ -39,6 +42,13 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ project, onClos
         setCurrentImageIndex((prevIndex) =>
             prevIndex === 0 ? project.imageGallery.length - 1 : prevIndex - 1
         );
+    };
+
+    const handleGenerateInsight = async () => {
+        setLoadingInsight(true);
+        const insight = await generateProjectInsight(project);
+        setAiInsight(insight);
+        setLoadingInsight(false);
     };
 
     return (
@@ -98,6 +108,30 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ project, onClos
                             <h3 className="text-xl font-semibold text-text-primary mb-2">About this project</h3>
                             <p className="text-text-secondary whitespace-pre-wrap">{project.longDescription}</p>
                         </div>
+                        
+                        {/* AI Insight Feature */}
+                        <div className="bg-gradient-to-r from-accent/10 to-highlight/10 p-4 rounded-lg border border-accent/20">
+                            <div className="flex items-center justify-between mb-2">
+                                <h4 className="text-sm font-bold text-accent flex items-center gap-1">
+                                    <span className="text-lg">✨</span> AI Recruiter Insight
+                                </h4>
+                                {!aiInsight && (
+                                    <button 
+                                        onClick={handleGenerateInsight} 
+                                        disabled={loadingInsight}
+                                        className="text-xs bg-accent text-white px-3 py-1 rounded-full hover:opacity-90 disabled:opacity-50"
+                                    >
+                                        {loadingInsight ? 'Generating...' : 'Generate Summary'}
+                                    </button>
+                                )}
+                            </div>
+                            {aiInsight && (
+                                <p className="text-sm text-text-primary italic animate-fade-in-up">
+                                    "{aiInsight}"
+                                </p>
+                            )}
+                        </div>
+
                          {project.keyLearning && (
                             <div>
                                 <h3 className="text-xl font-semibold text-text-primary mb-2">Key Learning</h3>

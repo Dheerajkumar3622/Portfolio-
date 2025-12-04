@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -9,7 +9,8 @@ import BackToTopButton from '../components/BackToTopButton';
 import SkillBar from '../components/SkillBar';
 import { Link } from 'react-router-dom';
 import { postLead } from '../services/api';
-import type { Project, SocialLink, Note } from '../types';
+import { semanticSearchProjects } from '../services/geminiService';
+import type { Project, SocialLink, Note, Skill } from '../types';
 import { useOnScreen } from '../hooks/useOnScreen';
 import SocialLinks from '../components/SocialLinks';
 import MemoriesSection from '../components/MemoriesSection';
@@ -17,6 +18,8 @@ import Typewriter from '../components/Typewriter';
 import ProTipWidget from '../components/ProTipWidget';
 import AuthModal from '../components/AuthModal';
 import UserProfileModal from '../components/UserProfileModal';
+import VoiceControl from '../components/VoiceControl'; // Feature 1: Voice
+import SmartImage from '../components/SmartImage';     // Feature 10: Self-Healing UI
 
 
 const Header: React.FC<{ name: string; title: string; activeSection: string; onProfileClick: () => void; onLoginClick: () => void; }> = ({ name, title, activeSection, onProfileClick, onLoginClick }) => {
@@ -143,10 +146,10 @@ const Hero: React.FC<{ profile: any }> = ({ profile }) => (
         <div className="flex-1 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
              <div className="relative w-64 h-64 md:w-96 md:h-96 mx-auto">
                 <div className="absolute inset-0 bg-gradient-to-tr from-accent to-highlight rounded-full opacity-10 blur-2xl"></div>
-                <img 
+                <SmartImage 
                     src={profile.profilePicture || "https://picsum.photos/400/400"} 
                     alt={profile.name} 
-                    className="relative w-full h-full object-cover rounded-2xl shadow-premium rotate-3 hover:rotate-0 transition-transform duration-500"
+                    className="relative w-full h-full rounded-2xl shadow-premium rotate-3 hover:rotate-0 transition-transform duration-500"
                 />
              </div>
         </div>
@@ -233,18 +236,80 @@ const ContactForm = () => {
 const UserView: React.FC = () => {
   const { portfolioData } = usePortfolio();
   const { profile, skills, projects, experience, education, memories, notes } = portfolioData;
-  const [selectedTech, setSelectedTech] = useState<string | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [activeSection, setActiveSection] = useState('about');
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  
+  // Semantic Search State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [filteredProjects, setFilteredProjects] = useState<Project[]>(projects);
 
-  // Derive unique categories for filter
-  const allTechs = [...new Set(projects.flatMap(p => p.technologies))].slice(0, 6); // Limit to top 6
+  // --- Feature 9: Dynamic Content Personalization ---
+  const [userInterests, setUserInterests] = useState<Record<string, number>>({});
+  
+  // Sort skills based on user interests. If user clicks "AI" projects, AI skills float to top.
+  const dynamicSkills = useMemo(() => {
+    if (Object.keys(userInterests).length === 0) return skills;
+    
+    return [...skills].sort((a, b) => {
+        const aScore = Object.keys(userInterests).reduce((score, interest) => {
+            return a.name.toLowerCase().includes(interest.toLowerCase()) ? score + userInterests[interest] : score;
+        }, 0);
+        const bScore = Object.keys(userInterests).reduce((score, interest) => {
+             return b.name.toLowerCase().includes(interest.toLowerCase()) ? score + userInterests[interest] : score;
+        }, 0);
+        
+        // Secondary sort by level if scores are equal
+        if (bScore === aScore) return b.level - a.level;
+        return bScore - aScore;
+    });
+  }, [skills, userInterests]);
 
-  const filteredProjects = selectedTech
-    ? projects.filter(p => p.technologies.includes(selectedTech))
-    : projects;
+  const handleProjectClick = (project: Project) => {
+      setSelectedProject(project);
+      
+      // Track interests
+      const newInterests = { ...userInterests };
+      project.technologies.forEach(tech => {
+          newInterests[tech] = (newInterests[tech] || 0) + 1;
+      });
+      // Also check title keywords
+      if (project.title.toLowerCase().includes('ai') || project.title.toLowerCase().includes('intelligence')) {
+          newInterests['AI'] = (newInterests['AI'] || 0) + 2;
+      }
+      if (project.title.toLowerCase().includes('embedded') || project.title.toLowerCase().includes('hardware')) {
+          newInterests['Embedded'] = (newInterests['Embedded'] || 0) + 2;
+      }
+      setUserInterests(newInterests);
+  };
+  // --------------------------------------------------
+
+  useEffect(() => {
+      setFilteredProjects(projects);
+  }, [projects]);
+
+  const handleSearch = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!searchQuery.trim()) {
+          setFilteredProjects(projects);
+          return;
+      }
+      setIsSearching(true);
+      try {
+          const matchingIds = await semanticSearchProjects(searchQuery, projects);
+          if (matchingIds.length > 0) {
+              setFilteredProjects(projects.filter(p => matchingIds.includes(p.id)));
+          } else {
+              setFilteredProjects([]);
+          }
+      } catch (err) {
+          console.error(err);
+      } finally {
+          setIsSearching(false);
+      }
+  };
 
   useEffect(() => {
     document.body.style.overflow = (selectedProject || isProfileModalOpen || isAuthModalOpen) ? 'hidden' : 'auto';
@@ -266,6 +331,13 @@ const UserView: React.FC = () => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const handleVoiceNavigate = (sectionId: string) => {
+      const element = document.getElementById(sectionId);
+      if (element) {
+          element.scrollIntoView({ behavior: 'smooth' });
+      }
+  };
   
   const handleDownload = async (note: Note) => {
     try {
@@ -298,44 +370,69 @@ const UserView: React.FC = () => {
       <main className="w-full overflow-x-hidden">
         <Hero profile={profile} />
         
-        {/* Skills Section - Clean Grid */}
+        {/* Skills Section - Dynamic & Personalized */}
         <AnimatedSection id="skills" title="Technical Expertise" subtitle="Capabilities" className="bg-secondary/30">
+            {Object.keys(userInterests).length > 0 && (
+                <div className="text-center mb-6 animate-fade-in-up">
+                    <span className="bg-accent/10 text-accent text-xs font-bold px-3 py-1 rounded-full border border-accent/20">
+                        ⚡ Personalized based on your interests
+                    </span>
+                </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {skills.map(skill => (
+                {dynamicSkills.map(skill => (
                     <SkillBar key={skill.id} name={skill.name} level={skill.level} />
                 ))}
             </div>
         </AnimatedSection>
 
-        {/* Projects Section - Minimal Cards */}
+        {/* Projects Section - AI Search & Smart Images */}
         <AnimatedSection id="projects" title="Selected Works" subtitle="Portfolio">
-            <div className="flex flex-wrap justify-center gap-2 mb-12">
-                <button
-                    onClick={() => setSelectedTech(null)}
-                    className={`px-4 py-2 text-sm font-medium rounded-full transition-all ${!selectedTech ? 'bg-highlight text-primary shadow-lg' : 'bg-secondary text-text-secondary hover:bg-secondary/80'}`}
-                >
-                    All
-                </button>
-                {allTechs.map(tech => (
-                    <button
-                        key={tech}
-                        onClick={() => setSelectedTech(tech)}
-                        className={`px-4 py-2 text-sm font-medium rounded-full transition-all ${selectedTech === tech ? 'bg-highlight text-primary shadow-lg' : 'bg-secondary text-text-secondary hover:bg-secondary/80'}`}
-                    >
-                        {tech}
+            {/* AI Search Bar */}
+            <div className="max-w-xl mx-auto mb-12">
+                <form onSubmit={handleSearch} className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg className="h-5 w-5 text-gray-400 group-focus-within:text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                    </div>
+                    <input 
+                        type="text" 
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="block w-full pl-10 pr-4 py-3 border border-secondary rounded-full bg-secondary/50 text-text-primary placeholder-text-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:bg-primary transition-all shadow-sm"
+                        placeholder="Ask AI to find projects (e.g., 'Show me embedded systems')..."
+                    />
+                    <button type="submit" disabled={isSearching} className="absolute right-2 top-1.5 bottom-1.5 bg-accent text-white px-4 rounded-full text-sm font-bold hover:bg-highlight transition-colors disabled:opacity-50">
+                        {isSearching ? 'Thinking...' : 'AI Search'}
                     </button>
-                ))}
+                </form>
+                {searchQuery && (
+                    <div className="text-center mt-2 text-sm text-text-secondary">
+                        {filteredProjects.length === 0 ? "No matches found." : `Found ${filteredProjects.length} relevant projects.`}
+                        <button onClick={() => {setSearchQuery(''); setFilteredProjects(projects);}} className="ml-2 text-accent underline">Clear</button>
+                    </div>
+                )}
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {filteredProjects.map((project) => (
                     <div 
                         key={project.id} 
-                        onClick={() => setSelectedProject(project)}
+                        onClick={() => handleProjectClick(project)}
                         className="group cursor-pointer bg-primary rounded-2xl overflow-hidden shadow-premium hover:shadow-premium-hover transition-all duration-300 hover:-translate-y-1 border border-secondary"
                     >
-                         <div className="h-56 overflow-hidden">
-                            <img src={project.imageGallery[0] || 'https://picsum.photos/800/600'} alt={project.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"/>
+                         <div className="h-56 overflow-hidden relative">
+                            {/* Feature 10: Smart Image for Self-Healing UI */}
+                            <SmartImage 
+                                src={project.imageGallery[0] || 'https://picsum.photos/800/600'} 
+                                alt={project.title} 
+                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                fallbackText={project.title}
+                            />
+                            <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                                AI Analyzed
+                            </div>
                          </div>
                          <div className="p-8">
                             <h3 className="text-2xl font-bold text-text-primary mb-2 group-hover:text-accent transition-colors">{project.title}</h3>
@@ -431,6 +528,8 @@ const UserView: React.FC = () => {
       </main>
       
       <GuestbookWidget />
+      {/* Feature 1: Voice Navigator */}
+      <VoiceControl onNavigate={handleVoiceNavigate} />
       
       <footer id="contact" className="bg-primary py-16 border-t border-secondary w-full">
             <div className="container mx-auto px-6">

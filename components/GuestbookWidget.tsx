@@ -1,6 +1,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { fetchGuestbook, postGuestbook, updateGuestbook, fetchNewerGuestbook, postReport } from '../services/api';
+import { fetchGuestbook, postGuestbook, fetchNewerGuestbook, postReport } from '../services/api';
+import { analyzeSentiment } from '../services/geminiService'; // Import Sentiment check
 import type { GuestbookEntry } from '../types';
 import { useAuth } from '../context/AuthContext';
 
@@ -10,21 +11,9 @@ const POST_TIMESTAMPS_KEY = 'guestbookPostTimestamps';
 const RATE_LIMIT_COUNT = 10;
 const RATE_LIMIT_WINDOW = 60000; // 1 minute
 const MESSAGES_PER_PAGE = 50;
-const POLLING_INTERVAL = 2000; // Fast polling for "live" feel
-
-const PROFANITY_BLOCKLIST = ['badword', 'profanity', 'offensive']; 
+const POLLING_INTERVAL = 2000;
 
 // --- Helper Functions ---
-
-const filterProfanity = (text: string): string => {
-    let cleanText = text;
-    PROFANITY_BLOCKLIST.forEach(word => {
-        const regex = new RegExp(`\\b${word}\\b`, 'gi');
-        cleanText = cleanText.replace(regex, '****');
-    });
-    return cleanText;
-};
-
 const formatTime = (timestamp: number): string => {
     return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
@@ -53,6 +42,8 @@ const ChatBubble: React.FC<{
 }> = ({ entry, isMe, onReport }) => {
     const [showOptions, setShowOptions] = useState(false);
     const isAdmin = entry.userId === 'Admin';
+    // Check for our special "Positive Vibe" tag stored in reactions for now, or just implicit
+    const isPositive = entry.reactions && entry.reactions['positive_sentiment'];
 
     return (
         <div 
@@ -86,6 +77,12 @@ const ChatBubble: React.FC<{
                     
                     <p className="whitespace-pre-wrap break-words">{entry.message}</p>
                     
+                    {isPositive && (
+                         <div className="mt-1 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full inline-block">
+                             ✨ Positive Vibes
+                         </div>
+                    )}
+                    
                     <div className={`text-[10px] mt-1 text-right ${isMe ? 'text-white/70' : 'text-text-secondary/60'}`}>
                         {formatTime(entry.timestamp)}
                     </div>
@@ -114,6 +111,7 @@ const GuestbookWidget: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isPosting, setIsPosting] = useState(false);
     const [error, setError] = useState('');
+    const [aiStatus, setAiStatus] = useState(''); // Feedback for sentiment analysis
 
     const { currentUser } = useAuth();
     
@@ -132,9 +130,7 @@ const GuestbookWidget: React.FC = () => {
 
     const fetchEntries = useCallback(async () => {
         try {
-            // Fetch initial batch
             const data = await fetchGuestbook({ limit: MESSAGES_PER_PAGE });
-            // Sort oldest to newest for chat layout
             setEntries(data.sort((a, b) => a.timestamp - b.timestamp));
             setIsLoading(false);
             setTimeout(scrollToBottom, 100);
@@ -143,7 +139,6 @@ const GuestbookWidget: React.FC = () => {
         }
     }, []);
 
-    // Initial Open Logic
     useEffect(() => {
         if (isOpen) {
             if (currentUser) {
@@ -165,10 +160,7 @@ const GuestbookWidget: React.FC = () => {
             try {
                 const newerEntries = await fetchNewerGuestbook(latestTimestamp);
                 if (newerEntries.length > 0) {
-                    // Sort newer entries oldest to newest to append correctly
                     const sortedNew = newerEntries.sort((a, b) => a.timestamp - b.timestamp);
-                    
-                    // Filter duplicates
                     const existingIds = new Set(currentEntries.map(e => e.id));
                     const uniqueNew = sortedNew.filter(e => !existingIds.has(e.id));
 
@@ -177,9 +169,7 @@ const GuestbookWidget: React.FC = () => {
                         setTimeout(scrollToBottom, 100);
                     }
                 }
-            } catch (e) {
-                // Silent fail on poll error
-            }
+            } catch (e) { }
         };
 
         const interval = setInterval(poll, POLLING_INTERVAL);
@@ -191,12 +181,13 @@ const GuestbookWidget: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
+        setAiStatus('');
         if (!currentUser) return;
 
         const trimmed = message.trim();
         if (!trimmed || isPosting) return;
 
-        // Rate Limit Check
+        // Rate Limit
         const now = Date.now();
         const timestamps = JSON.parse(localStorage.getItem(POST_TIMESTAMPS_KEY) || '[]');
         const recent = timestamps.filter((ts: number) => now - ts < RATE_LIMIT_WINDOW);
@@ -207,26 +198,40 @@ const GuestbookWidget: React.FC = () => {
         localStorage.setItem(POST_TIMESTAMPS_KEY, JSON.stringify([...recent, now]));
 
         setIsPosting(true);
-        const tempId = `temp-${Date.now()}`;
-        const tempEntry: GuestbookEntry = {
-            id: tempId,
-            userId: currentUser.id,
-            message: filterProfanity(trimmed),
-            timestamp: Date.now(),
-            reactions: {}
-        };
-
-        // Optimistic UI Update
-        setEntries(prev => [...prev, tempEntry]);
-        setMessage('');
-        setTimeout(scrollToBottom, 50);
+        setAiStatus('AI Analyzing sentiment...');
 
         try {
+            // 1. Analyze Sentiment before posting
+            const sentiment = await analyzeSentiment(trimmed);
+            
+            if (sentiment.label === 'TOXIC') {
+                setError("Message blocked by AI Moderation: Content flagged as toxic.");
+                setIsPosting(false);
+                setAiStatus('');
+                return;
+            }
+
+            const tempId = `temp-${Date.now()}`;
+            const tempEntry: GuestbookEntry = {
+                id: tempId,
+                userId: currentUser.id,
+                message: trimmed,
+                timestamp: Date.now(),
+                reactions: sentiment.label === 'POSITIVE' ? { 'positive_sentiment': 1 } : {}
+            };
+
+            // Optimistic Update
+            setEntries(prev => [...prev, tempEntry]);
+            setMessage('');
+            setAiStatus('');
+            setTimeout(scrollToBottom, 50);
+
+            // 2. Post to Backend
             await postGuestbook({ userId: currentUser.id, message: tempEntry.message });
+            
         } catch (e) {
             console.error("Post failed", e);
             setError("Failed to send message.");
-            setEntries(prev => prev.filter(e => e.id !== tempId));
         } finally {
             setIsPosting(false);
             messageInputRef.current?.focus();
@@ -256,8 +261,6 @@ const GuestbookWidget: React.FC = () => {
 
             {isOpen && (
                 <div className="fixed bottom-24 right-4 md:right-8 w-[90vw] md:w-96 h-[500px] bg-secondary/95 backdrop-blur-xl border border-text-secondary/20 rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden animate-fade-in-up">
-                    
-                    {/* Header */}
                     <div className="bg-gradient-to-r from-accent to-highlight p-4 text-white font-bold flex justify-between items-center shadow-md z-10">
                         <div className="flex items-center space-x-2">
                             <span>Public Chat</span>
@@ -266,7 +269,6 @@ const GuestbookWidget: React.FC = () => {
                         <button onClick={handleToggle} className="hover:bg-white/20 rounded-full p-1 text-sm">Close</button>
                     </div>
 
-                    {/* Chat Area */}
                     <div className="flex-1 overflow-y-auto p-4 bg-primary/50 scroll-smooth">
                         {isLoading && <p className="text-center text-text-secondary text-sm mt-4">Loading conversation...</p>}
                         
@@ -288,9 +290,9 @@ const GuestbookWidget: React.FC = () => {
                         <div ref={chatEndRef} />
                     </div>
 
-                    {/* Input Area */}
                     <div className="p-3 bg-secondary border-t border-text-secondary/10">
                          {error && <p className="text-red-500 text-xs text-center mb-2">{error}</p>}
+                         {aiStatus && <p className="text-accent text-xs text-center mb-2 animate-pulse">{aiStatus}</p>}
                         
                         {currentUser ? (
                             <form onSubmit={handleSubmit} className="flex items-end gap-2">
@@ -324,9 +326,6 @@ const GuestbookWidget: React.FC = () => {
                                 </button>
                             </div>
                         )}
-                        <div className="text-center mt-1">
-                             {currentUser && <span className="text-[10px] text-text-secondary">Logged in as {currentUser.id}</span>}
-                        </div>
                     </div>
                 </div>
             )}

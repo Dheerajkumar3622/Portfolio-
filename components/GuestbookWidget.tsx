@@ -7,14 +7,14 @@ import { useAuth } from '../context/AuthContext';
 // --- Config ---
 const MESSAGE_MAX_LENGTH = 280;
 const POST_TIMESTAMPS_KEY = 'guestbookPostTimestamps';
-const RATE_LIMIT_COUNT = 5;
+const RATE_LIMIT_COUNT = 10; // Increased for chat
 const RATE_LIMIT_WINDOW = 60000; // 1 minute
 const MESSAGES_PER_PAGE = 50;
-const POLLING_INTERVAL = 5000; // 5 seconds
+const POLLING_INTERVAL = 3000; // Faster polling for chat feel
 
-const PROFANITY_BLOCKLIST = ['badword', 'profanity', 'offensive']; // Add more words as needed
+const PROFANITY_BLOCKLIST = ['badword', 'profanity', 'offensive']; 
 
-// --- Helper Functions & Sub-components ---
+// --- Helper Functions ---
 
 const filterProfanity = (text: string): string => {
     let cleanText = text;
@@ -25,83 +25,69 @@ const filterProfanity = (text: string): string => {
     return cleanText;
 };
 
-const formatTimestamp = (timestamp: number): string => {
-    const now = new Date();
-    const msgDate = new Date(timestamp);
-    const diffMs = now.getTime() - msgDate.getTime();
-    const diffMins = Math.round(diffMs / 60000);
-
-    if (diffMins < 1) return "Just now";
-    if (diffMins < 60) return `${diffMins} minutes ago`;
-
-    const isToday = now.toDateString() === msgDate.toDateString();
-    if (isToday) {
-        return `Today at ${msgDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
-    }
-
-    return msgDate.toLocaleString([], { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+const formatTime = (timestamp: number): string => {
+    return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-const useRelativeTime = (timestamp: number) => {
-    const [relativeTime, setRelativeTime] = useState(() => formatTimestamp(timestamp));
-    useEffect(() => {
-        const interval = setInterval(() => setRelativeTime(formatTimestamp(timestamp)), 60000);
-        return () => clearInterval(interval);
-    }, [timestamp]);
-    return relativeTime;
-};
-
-
-const AVATAR_COLORS = ['bg-cyan-500', 'bg-lime-500', 'bg-violet-500', 'bg-rose-500', 'bg-amber-500', 'bg-emerald-500', 'bg-sky-500', 'bg-fuchsia-500'];
 const getAvatarColor = (name: string) => {
+    const colors = ['bg-cyan-500', 'bg-lime-500', 'bg-violet-500', 'bg-rose-500', 'bg-amber-500', 'bg-emerald-500', 'bg-sky-500'];
     let hash = 0;
     for (let i = 0; i < name.length; i++) {
         hash = name.charCodeAt(i) + ((hash << 5) - hash);
     }
-    return AVATAR_COLORS[Math.abs(hash % AVATAR_COLORS.length)];
+    return colors[Math.abs(hash % colors.length)];
 };
 
-const Avatar: React.FC<{ name: string }> = ({ name }) => (
-    <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold text-xl ${getAvatarColor(name)}`}>
-        {name.charAt(0).toUpperCase() || '?'}
+const Avatar: React.FC<{ name: string; size?: string }> = ({ name, size = "w-8 h-8 text-sm" }) => (
+    <div className={`${size} rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold ${getAvatarColor(name)}`}>
+        {name.charAt(0).toUpperCase()}
     </div>
 );
 
-const REACTIONS = ['👍', '❤️', '🎉'];
-
-const ChatMessage: React.FC<{ 
+// --- Chat Bubble Component ---
+const ChatBubble: React.FC<{ 
     entry: GuestbookEntry, 
-    onReaction: (entryId: string, emoji: string) => void,
+    isMe: boolean,
     onReport: (entry: GuestbookEntry) => void 
-}> = ({ entry, onReaction, onReport }) => {
-    const relativeTime = useRelativeTime(entry.timestamp);
-    const [showReport, setShowReport] = useState(false);
+}> = ({ entry, isMe, onReport }) => {
+    const [showOptions, setShowOptions] = useState(false);
 
     return (
-        <div className="flex items-start space-x-3 group">
-            <Avatar name={entry.userId} />
-            <div className="flex-1">
-                <div className="bg-base-100 p-3 rounded-lg rounded-tl-none relative border border-text-secondary/10">
-                     <button onClick={() => setShowReport(!showReport)} className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-text-secondary hover:text-text-primary p-1">
-                        ...
-                    </button>
-                    {showReport && (
-                        <div className="absolute top-8 right-1 bg-secondary shadow-lg rounded-md border border-text-secondary/20 text-sm z-10">
-                            <button onClick={() => { onReport(entry); setShowReport(false); }} className="block w-full text-left px-4 py-2 hover:bg-base-100 text-text-primary">
-                                Report Message
-                            </button>
-                        </div>
-                    )}
-                    <p className="font-semibold text-accent text-sm">{entry.userId} <span className="text-xs text-text-secondary font-normal ml-2">{relativeTime}</span></p>
-                    <p className="text-text-primary mt-1 break-words">{entry.message}</p>
+        <div 
+            className={`flex w-full mb-4 ${isMe ? 'justify-end' : 'justify-start'}`}
+            onMouseEnter={() => setShowOptions(true)}
+            onMouseLeave={() => setShowOptions(false)}
+        >
+            <div className={`flex max-w-[80%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                {/* Avatar */}
+                <div className={`flex-shrink-0 ${isMe ? 'ml-2' : 'mr-2'} mt-auto`}>
+                    <Avatar name={entry.userId} />
                 </div>
-                <div className="flex items-center space-x-2 mt-1 pl-1">
-                    {REACTIONS.map(emoji => (
-                        <button key={emoji} onClick={() => onReaction(entry.id, emoji)} className="flex items-center space-x-1 bg-base-100 hover:bg-secondary border border-transparent hover:border-text-secondary/20 transition-colors px-2 py-0.5 rounded-full text-xs" aria-label={`React with ${emoji}`}>
-                            <span>{emoji}</span>
-                            <span className="text-text-secondary font-medium">{entry.reactions?.[emoji] || 0}</span>
+
+                {/* Bubble */}
+                <div className={`relative px-4 py-2 rounded-2xl shadow-sm text-sm ${
+                    isMe 
+                    ? 'bg-accent text-white rounded-br-none' 
+                    : 'bg-base-100 text-text-primary border border-text-secondary/10 rounded-bl-none'
+                }`}>
+                    {/* User ID on received messages */}
+                    {!isMe && <div className="text-xs font-bold text-accent mb-1">{entry.userId}</div>}
+                    
+                    <p className="whitespace-pre-wrap break-words">{entry.message}</p>
+                    
+                    <div className={`text-[10px] mt-1 text-right ${isMe ? 'text-white/70' : 'text-text-secondary/60'}`}>
+                        {formatTime(entry.timestamp)}
+                    </div>
+
+                    {/* Options (Report) */}
+                    {showOptions && !isMe && (
+                        <button 
+                            onClick={() => onReport(entry)} 
+                            className="absolute -top-6 right-0 bg-secondary text-xs px-2 py-1 rounded shadow text-red-400 hover:text-red-500 opacity-90"
+                        >
+                            Report
                         </button>
-                    ))}
+                    )}
                 </div>
             </div>
         </div>
@@ -109,12 +95,10 @@ const ChatMessage: React.FC<{
 };
 
 
-// --- Main Component ---
+// --- Main Widget ---
 const GuestbookWidget: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [entries, setEntries] = useState<GuestbookEntry[]>([]);
-    const [offset, setOffset] = useState(0);
-    const [hasMore, setHasMore] = useState(true);
     const [message, setMessage] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [isPosting, setIsPosting] = useState(false);
@@ -122,148 +106,116 @@ const GuestbookWidget: React.FC = () => {
 
     const { currentUser } = useAuth();
     
-    const chatBoxRef = useRef<HTMLDivElement>(null);
+    const chatEndRef = useRef<HTMLDivElement>(null);
     const messageInputRef = useRef<HTMLTextAreaElement>(null);
-
     const entriesRef = useRef(entries);
+
+    // Keep ref in sync for poller
     useEffect(() => {
         entriesRef.current = entries;
     }, [entries]);
 
-    const fetchEntries = useCallback(async (currentOffset: number, isLoadMore: boolean) => {
-        if (!isLoadMore) setIsLoading(true);
+    const scrollToBottom = () => {
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    const fetchEntries = useCallback(async () => {
         try {
-            const newEntries = await fetchGuestbook({ offset: currentOffset, limit: MESSAGES_PER_PAGE });
-            
-            if (isLoadMore) {
-                setEntries(prev => [...prev, ...newEntries]);
-            } else {
-                setEntries(newEntries);
-            }
-            
-            setHasMore(newEntries.length === MESSAGES_PER_PAGE);
+            // Fetch initial batch
+            const data = await fetchGuestbook({ limit: MESSAGES_PER_PAGE });
+            // Sort oldest to newest for chat layout
+            setEntries(data.sort((a, b) => a.timestamp - b.timestamp));
+            setIsLoading(false);
+            setTimeout(scrollToBottom, 100);
         } catch (e) {
-            console.error("Failed to fetch guestbook entries:", e);
-            setError("Could not load messages.");
-        } finally {
-            if (!isLoadMore) setIsLoading(false);
+            console.error("Failed to load chat:", e);
         }
     }, []);
 
-    // Initial load and setup when widget opens
+    // Initial Open Logic
     useEffect(() => {
         if (isOpen) {
             if (currentUser) {
                 setTimeout(() => messageInputRef.current?.focus(), 100);
             }
-            setOffset(0); // Reset offset on open
-            fetchEntries(0, false);
-        } else {
-            // Cleanup on close
-            setEntries([]);
-            setOffset(0);
-            setHasMore(true);
-            setError('');
-            setIsLoading(true);
+            fetchEntries();
         }
-    }, [isOpen, fetchEntries, currentUser]);
-    
-    // Polling for new messages and updates
+    }, [isOpen, currentUser, fetchEntries]);
+
+    // Polling Logic
     useEffect(() => {
-        if (!isOpen || isLoading) return;
+        if (!isOpen) return;
 
         const poll = async () => {
             const currentEntries = entriesRef.current;
-            
+            const lastEntry = currentEntries.length > 0 ? currentEntries[currentEntries.length - 1] : null;
+            const latestTimestamp = lastEntry ? lastEntry.timestamp : 0;
+
             try {
-                // Poll for brand new messages since the last one we received
-                const latestTimestamp = currentEntries.length > 0 ? currentEntries[0].timestamp : 0;
                 const newerEntries = await fetchNewerGuestbook(latestTimestamp);
-                
-                // Separately, refresh all currently loaded data to get reaction updates and handle deletions.
-                const totalLoadedCount = offset + MESSAGES_PER_PAGE;
-                const refreshedEntries = await fetchGuestbook({offset: 0, limit: totalLoadedCount});
-                
-                setEntries(prev => {
-                    const refreshedMap = new Map(refreshedEntries.map(e => [e.id, e]));
-                    const existingIds = new Set(prev.map(e => e.id));
+                if (newerEntries.length > 0) {
+                    // Sort newer entries oldest to newest to append correctly
+                    const sortedNew = newerEntries.sort((a, b) => a.timestamp - b.timestamp);
+                    
+                    // Filter duplicates
+                    const existingIds = new Set(currentEntries.map(e => e.id));
+                    const uniqueNew = sortedNew.filter(e => !existingIds.has(e.id));
 
-                    // Add new entries that are not already in the state
-                    const trulyNew = newerEntries.filter(e => !existingIds.has(e.id));
-                    
-                    // 1. Filter out entries that were deleted on the server.
-                    // 2. Keep any optimistic (temp) entries that haven't been replaced by a real one yet.
-                    const liveEntries = prev.filter(e => refreshedMap.has(e.id) || e.id.startsWith('temp-'));
-                    
-                    // 3. Map over the remaining entries to update them with the latest data.
-                    const updatedEntries = liveEntries.map(e => refreshedMap.get(e.id) || e);
-                    
-                    // Combine and remove duplicates, then sort
-                    const combined = [...trulyNew, ...updatedEntries];
-                    const uniqueCombined = Array.from(new Map(combined.map(e => [e.id, e])).values());
-
-                    return uniqueCombined.sort((a, b) => b.timestamp - a.timestamp);
-                });
+                    if (uniqueNew.length > 0) {
+                        setEntries(prev => [...prev, ...uniqueNew]);
+                        setTimeout(scrollToBottom, 100);
+                    }
+                }
             } catch (e) {
-                console.error("Guestbook polling failed:", e);
+                // Silent fail on poll error
             }
         };
-        
-        const intervalId = setInterval(poll, POLLING_INTERVAL);
-        return () => clearInterval(intervalId);
-    }, [isOpen, offset, isLoading]);
 
+        const interval = setInterval(poll, POLLING_INTERVAL);
+        return () => clearInterval(interval);
+    }, [isOpen]);
 
     const handleToggle = () => setIsOpen(!isOpen);
-
-    const handleReaction = async (entryId: string, emoji: string) => {
-        const entry = entries.find(e => e.id === entryId);
-        if (!entry) return;
-        const newReactions = { ...entry.reactions, [emoji]: (entry.reactions?.[emoji] || 0) + 1 };
-        setEntries(prev => prev.map(e => e.id === entryId ? { ...e, reactions: newReactions } : e));
-        try {
-            await updateGuestbook(entryId, { reactions: newReactions });
-        } catch (error) {
-            console.error("Failed to save reaction:", error);
-            // Revert on failure
-            setEntries(prev => prev.map(e => e.id === entryId ? entry : e));
-        }
-    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
-        if (!currentUser) {
-            setError('Please log in to post a message.');
-            return;
-        }
+        if (!currentUser) return;
 
-        const trimmedMessage = message.trim();
-        if (!trimmedMessage || isPosting) return;
+        const trimmed = message.trim();
+        if (!trimmed || isPosting) return;
 
-        // Rate Limiting
+        // Rate Limit Check
         const now = Date.now();
         const timestamps = JSON.parse(localStorage.getItem(POST_TIMESTAMPS_KEY) || '[]');
-        const recentTimestamps = timestamps.filter((ts: number) => now - ts < RATE_LIMIT_WINDOW);
-        if (recentTimestamps.length >= RATE_LIMIT_COUNT) {
-            setError("You're posting too frequently. Please wait a moment.");
+        const recent = timestamps.filter((ts: number) => now - ts < RATE_LIMIT_WINDOW);
+        if (recent.length >= RATE_LIMIT_COUNT) {
+            setError("Slow down! You're messaging too fast.");
             return;
         }
-        localStorage.setItem(POST_TIMESTAMPS_KEY, JSON.stringify([...recentTimestamps, now]));
+        localStorage.setItem(POST_TIMESTAMPS_KEY, JSON.stringify([...recent, now]));
 
         setIsPosting(true);
-        const tempEntry: GuestbookEntry = { id: `temp-${Date.now()}`, userId: currentUser.id, message: filterProfanity(trimmedMessage), timestamp: Date.now(), reactions: {} };
-        setEntries(prev => [tempEntry, ...prev]);
+        const tempId = `temp-${Date.now()}`;
+        const tempEntry: GuestbookEntry = {
+            id: tempId,
+            userId: currentUser.id,
+            message: filterProfanity(trimmed),
+            timestamp: Date.now(),
+            reactions: {}
+        };
+
+        // Optimistic UI Update
+        setEntries(prev => [...prev, tempEntry]);
         setMessage('');
-        
+        setTimeout(scrollToBottom, 50);
+
         try {
             await postGuestbook({ userId: currentUser.id, message: tempEntry.message });
-            // The poller will replace the temp entry with the real one.
         } catch (e) {
-            console.error("Failed to save entry:", e);
-            setError("Failed to post message. Please try again.");
-            // On failure, remove the specific optimistic entry we added.
-            setEntries(prev => prev.filter(entry => entry.id !== tempEntry.id));
+            console.error("Post failed", e);
+            setError("Failed to send message.");
+            setEntries(prev => prev.filter(e => e.id !== tempId));
         } finally {
             setIsPosting(false);
             messageInputRef.current?.focus();
@@ -271,63 +223,100 @@ const GuestbookWidget: React.FC = () => {
     };
 
     const handleReport = async (entry: GuestbookEntry) => {
-        try {
-            await postReport(entry);
-            alert("Message reported. A moderator will review it shortly. Thank you.");
-        } catch (error) {
-            console.error("Failed to report message:", error);
-            alert("Could not report message. Please try again later.");
+        if(window.confirm("Report this message to the admin?")) {
+            try {
+                await postReport(entry);
+                alert("Report sent.");
+            } catch (e) {
+                alert("Failed to report.");
+            }
         }
-    }
-
-    const handleLoadMore = () => {
-        const nextOffset = offset + MESSAGES_PER_PAGE;
-        setOffset(nextOffset);
-        fetchEntries(nextOffset, true);
     };
 
     return (
         <>
-            <button onClick={handleToggle} className="fixed bottom-8 right-8 bg-gradient-to-r from-accent to-highlight text-white w-16 h-16 rounded-full shadow-lg flex items-center justify-center text-3xl z-50 transform hover:scale-110 transition-transform animate-attention-shake" aria-label={isOpen ? "Close chat" : "Open public chat"}>
+            <button 
+                onClick={handleToggle} 
+                className="fixed bottom-8 right-8 bg-gradient-to-r from-accent to-highlight text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-2xl z-50 transform hover:scale-110 transition-transform animate-bounce" 
+                aria-label="Open Chat"
+            >
                 {isOpen ? '✕' : '💬'}
             </button>
 
             {isOpen && (
-                <div className="fixed bottom-28 right-8 w-80 h-[450px] bg-secondary/90 backdrop-blur-lg border border-text-secondary/20 rounded-lg shadow-2xl flex flex-col z-50 animate-slide-in" role="dialog">
-                    <header className="bg-base-100/90 p-4 rounded-t-lg text-text-primary border-b border-text-secondary/20 text-center font-bold">Public Chat</header>
-                    <div ref={chatBoxRef} className="flex-1 p-4 overflow-y-auto space-y-4">
-                        {hasMore && !isLoading && <button onClick={handleLoadMore} className="w-full text-center text-sm text-accent font-semibold hover:underline">Load Older Messages</button>}
-                        {isLoading && entries.length === 0 && <p className="text-text-secondary text-center pt-8">Loading messages...</p>}
-                        
-                        {entries.length > 0 ? entries.map(entry => (
-                           <ChatMessage key={entry.id} entry={entry} onReaction={handleReaction} onReport={handleReport}/>
-                        )) : !isLoading && <p className="text-text-secondary text-center pt-8">Be the first to leave a message!</p>}
-                    </div>
-                    <form onSubmit={handleSubmit} className="p-2 border-t border-text-secondary/20 space-y-2">
-                        {error && <p className="text-red-500 text-xs text-center">{error}</p>}
-                        {currentUser ? (
-                            <div className="px-3 py-2 bg-base-100 rounded-md">
-                                <p className="text-sm text-text-secondary">Posting as: <strong className="text-text-primary">{currentUser.id}</strong></p>
-                            </div>
-                        ) : null}
-                        <div className="relative">
-                            <textarea 
-                                ref={messageInputRef} 
-                                value={message} 
-                                onChange={e => setMessage(e.target.value)} 
-                                placeholder={currentUser ? "Leave a message..." : "Please log in to join the chat."} 
-                                rows={3} 
-                                className="w-full bg-base-100 border-text-secondary/20 rounded-md p-2 pr-12 text-text-primary focus:ring-2 focus:ring-accent resize-none disabled:bg-primary disabled:opacity-50" 
-                                disabled={isPosting || !currentUser} 
-                                maxLength={MESSAGE_MAX_LENGTH + 10} 
-                                required 
-                            />
-                            <span className={`absolute bottom-2 right-2 text-xs ${message.length > MESSAGE_MAX_LENGTH ? 'text-red-500' : 'text-text-secondary'}`}>{message.length}/{MESSAGE_MAX_LENGTH}</span>
+                <div className="fixed bottom-24 right-4 md:right-8 w-[90vw] md:w-96 h-[500px] bg-secondary/95 backdrop-blur-xl border border-text-secondary/20 rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden animate-fade-in-up">
+                    
+                    {/* Header */}
+                    <div className="bg-gradient-to-r from-accent to-highlight p-4 text-white font-bold flex justify-between items-center shadow-md z-10">
+                        <div className="flex items-center space-x-2">
+                            <span>Public Chat Room</span>
+                            <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
                         </div>
-                        <button type="submit" disabled={isPosting || !currentUser || !message.trim() || message.length > MESSAGE_MAX_LENGTH} className="w-full bg-accent text-white rounded-md p-2 disabled:bg-gray-400 disabled:cursor-not-allowed hover:bg-highlight transition-colors font-semibold">
-                            {isPosting ? 'Posting...' : 'Post Message'}
-                        </button>
-                    </form>
+                        <button onClick={handleToggle} className="hover:bg-white/20 rounded-full p-1 text-sm">Close</button>
+                    </div>
+
+                    {/* Chat Area */}
+                    <div className="flex-1 overflow-y-auto p-4 bg-primary/50 scroll-smooth">
+                        {isLoading && <p className="text-center text-text-secondary text-sm mt-4">Loading conversation...</p>}
+                        
+                        {!isLoading && entries.length === 0 && (
+                            <div className="text-center mt-8 opacity-70">
+                                <p className="text-4xl mb-2">👋</p>
+                                <p className="text-sm">No messages yet.<br/>Be the first to say hello!</p>
+                            </div>
+                        )}
+
+                        {entries.map(entry => (
+                            <ChatBubble 
+                                key={entry.id} 
+                                entry={entry} 
+                                isMe={currentUser?.id === entry.userId} 
+                                onReport={handleReport}
+                            />
+                        ))}
+                        <div ref={chatEndRef} />
+                    </div>
+
+                    {/* Input Area */}
+                    <div className="p-3 bg-secondary border-t border-text-secondary/10">
+                         {error && <p className="text-red-500 text-xs text-center mb-2">{error}</p>}
+                        
+                        {currentUser ? (
+                            <form onSubmit={handleSubmit} className="flex items-end gap-2">
+                                <textarea 
+                                    ref={messageInputRef}
+                                    value={message}
+                                    onChange={e => setMessage(e.target.value)}
+                                    placeholder="Type a message..."
+                                    className="flex-1 bg-base-100 border-none rounded-2xl py-2 px-4 focus:ring-2 focus:ring-accent resize-none h-10 max-h-24 min-h-[40px]"
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault();
+                                            handleSubmit(e);
+                                        }
+                                    }}
+                                    maxLength={MESSAGE_MAX_LENGTH}
+                                />
+                                <button 
+                                    type="submit" 
+                                    disabled={!message.trim() || isPosting}
+                                    className="bg-accent text-white p-2 rounded-full w-10 h-10 flex items-center justify-center hover:bg-highlight transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
+                                >
+                                    ➤
+                                </button>
+                            </form>
+                        ) : (
+                            <div className="text-center py-2">
+                                <p className="text-sm text-text-secondary mb-2">Join the conversation</p>
+                                <button onClick={() => alert("Please click the 'Login / Sign Up' button in the top navigation bar.")} className="bg-accent text-white px-6 py-2 rounded-full text-sm font-bold shadow hover:bg-highlight transition-colors w-full">
+                                    Login to Chat
+                                </button>
+                            </div>
+                        )}
+                        <div className="text-center mt-1">
+                             {currentUser && <span className="text-[10px] text-text-secondary">Logged in as {currentUser.id}</span>}
+                        </div>
+                    </div>
                 </div>
             )}
         </>

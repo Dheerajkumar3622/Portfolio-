@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
 import type { PortfolioData, Education, Skill, Project, Experience, GuestbookEntry, Lead, SocialLink, Memory, Note, Report, User } from '../types';
 import TagInput from '../components/TagInput';
-import { fetchGuestbook, removeGuestbook, fetchLeads, fetchReports, removeReport, fetchAllUsers, removeUser } from '../services/api';
+import { fetchGuestbook, removeGuestbook, fetchLeads, fetchReports, removeReport, fetchAllUsers, removeUser, postGuestbook } from '../services/api';
 import { GoogleGenAI } from "@google/genai";
 
 const STORAGE_KEY_AUTH = 'adminAuth';
@@ -181,6 +181,9 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     const [isDirty, setIsDirty] = useState(false);
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
+    // Chat reply state
+    const [adminReply, setAdminReply] = useState('');
+
     // State for new note upload
     const [newNote, setNewNote] = useState<{ title: string; description: string; file: File | null }>({ title: '', description: '', file: null });
     const [uploadingNote, setUploadingNote] = useState(false);
@@ -203,7 +206,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     }, [localData, portfolioData]);
 
     const fetchGuestbookData = async () => {
-        setGuestbookEntries(await fetchGuestbook({limit: 1000})); // Load all for admin
+        setGuestbookEntries(await fetchGuestbook({limit: 50})); // Load recent for chat view
     };
 
     const fetchReportData = async () => {
@@ -216,7 +219,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
 
     useEffect(() => {
         const fetchData = async () => {
-            if(activeTab === 'Guestbook') {
+            if(activeTab === 'Public Chat') {
                 fetchGuestbookData();
             }
             if(activeTab === 'Contact Leads') {
@@ -230,6 +233,13 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
             }
         };
         fetchData();
+        
+        // Poll for chat if tab is active
+        let interval: any;
+        if(activeTab === 'Public Chat') {
+             interval = setInterval(fetchGuestbookData, 3000);
+        }
+        return () => { if(interval) clearInterval(interval); }
     }, [activeTab]);
 
     // State for password change
@@ -285,7 +295,6 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         setGenerationStatus('Initializing AI video generation...');
     
         try {
-            // Create new instance to pick up potentially newly selected key
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
             
             const projectTitles = localData.projects.map(p => p.title).join(', ');
@@ -319,11 +328,9 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                 setGenerationStatus('Download complete. Processing video...');
                 const videoUri = operation.response.generatedVideos[0].video.uri;
                 
-                // Fetch with API key appended
                 const response = await fetch(`${videoUri}&key=${process.env.API_KEY}`);
                 const blob = await response.blob();
                 
-                // Convert to Base64 to store in app state
                 const reader = new FileReader();
                 reader.readAsDataURL(blob);
                 reader.onloadend = () => {
@@ -387,8 +394,6 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
 
     const handleProjectGalleryChange = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
         if (e.target.files) {
-            // FIX: Explicitly type `files` as `File[]` to resolve an issue where TypeScript
-            // was inferring the array items as `unknown`.
             const files: File[] = Array.from(e.target.files);
             const base64Promises = files.map(file => fileToBase64(file));
             const base64Images = await Promise.all(base64Promises);
@@ -413,7 +418,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
             ...(section === 'memories' && { image: '', caption: '' }),
         };
 
-        if(section === 'memories') return; // Memories are added via upload
+        if(section === 'memories') return;
 
         setLocalData(prev => ({
             ...prev,
@@ -423,8 +428,6 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     
     const handleMemoryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
-            // FIX: Explicitly type `files` as `File[]` to resolve an issue where TypeScript
-            // was inferring the array items as `unknown`.
             const files: File[] = Array.from(e.target.files);
             const base64Promises = files.map(file => fileToBase64(file));
             const base64Images = await Promise.all(base64Promises);
@@ -502,12 +505,10 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         };
         let isValid = true;
 
-        // Profile
         if (!data.profile.name.trim()) { newErrors.profile.name = 'Name is required.'; isValid = false; }
         if (!data.profile.title.trim()) { newErrors.profile.title = 'Title is required.'; isValid = false; }
         if (!data.profile.about.trim()) { newErrors.profile.about = 'About section is required.'; isValid = false; }
 
-        // Education
         data.education.forEach((edu, index) => {
             const eduErrors: any = {};
             if (!edu.degree.trim()) { eduErrors.degree = 'Degree is required.'; isValid = false; }
@@ -517,7 +518,6 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
             if (Object.keys(eduErrors).length > 0) { newErrors.education[index] = eduErrors; }
         });
 
-        // Experience
         data.experience.forEach((exp, index) => {
             const expErrors: any = {};
             if (!exp.role.trim()) { expErrors.role = 'Role is required.'; isValid = false; }
@@ -528,7 +528,6 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
             if (Object.keys(expErrors).length > 0) { newErrors.experience[index] = expErrors; }
         });
 
-        // Projects
         data.projects.forEach((proj, index) => {
             const projErrors: any = {};
             if (!proj.title.trim()) { projErrors.title = 'Title is required.'; isValid = false; }
@@ -541,7 +540,6 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
             if (Object.keys(projErrors).length > 0) { newErrors.projects[index] = projErrors; }
         });
 
-        // Skills
         data.skills.forEach((skill, index) => {
             const skillErrors: any = {};
             if (!skill.name.trim()) { skillErrors.name = 'Skill name is required.'; isValid = false; }
@@ -562,7 +560,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
 
         setSaveStatus('saving');
         await saveData(localData);
-        setPortfolioData(localData); // Update context
+        setPortfolioData(localData);
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 2000);
     };
@@ -606,6 +604,20 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         setSecurityMessage({ type: 'success', text: 'Security question updated successfully!' });
     };
 
+    const handleAdminChatSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if(!adminReply.trim()) return;
+
+        try {
+            await postGuestbook({ userId: 'Admin', message: adminReply });
+            setAdminReply('');
+            fetchGuestbookData();
+        } catch (error) {
+            console.error("Failed to post admin message", error);
+            alert("Failed to send message.");
+        }
+    };
+
     const renderSaveButtonContent = () => {
         switch (saveStatus) {
             case 'saving': return 'Saving...';
@@ -614,7 +626,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         }
     };
     
-    const TABS = ['Profile', 'Skills', 'Projects', 'Memories', 'Education', 'Experience', 'Notes', 'Guestbook', 'Moderation', 'Contact Leads', 'User Management', 'Settings'];
+    const TABS = ['Profile', 'Skills', 'Projects', 'Memories', 'Education', 'Experience', 'Notes', 'Public Chat', 'Moderation', 'Contact Leads', 'User Management', 'Settings'];
 
     return (
         <div className="bg-gray-900 text-white min-h-screen">
@@ -958,31 +970,45 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                                 </div>
                            )}
 
-                           {/* Guestbook Section */}
-                           {activeTab === 'Guestbook' && (
+                           {/* Chat Section */}
+                           {activeTab === 'Public Chat' && (
                                 <div>
-                                    <h2 className="text-2xl font-semibold mb-4 border-b border-gray-700 pb-2">Guestbook Entries</h2>
-                                    <div className="max-h-96 overflow-y-auto space-y-2">
+                                    <h2 className="text-2xl font-semibold mb-4 border-b border-gray-700 pb-2">Public Chat Room</h2>
+                                    <div className="bg-gray-900 border border-gray-700 rounded-lg p-4 mb-4 h-96 overflow-y-auto flex flex-col-reverse">
                                         {guestbookEntries.length > 0 ? guestbookEntries.map(entry => (
-                                            <div key={entry.id} className="bg-gray-700 p-3 rounded-md flex justify-between items-start">
-                                                <div>
-                                                    <p className="font-semibold text-accent">{entry.userId} <span className="text-xs text-gray-400 font-normal ml-2">{new Date(entry.timestamp).toLocaleString()}</span></p>
-                                                    <p className="mt-1 text-gray-300">{entry.message}</p>
+                                            <div key={entry.id} className={`mb-3 flex ${entry.userId === 'Admin' ? 'justify-end' : 'justify-start'}`}>
+                                                <div className={`max-w-[80%] rounded-lg p-3 ${entry.userId === 'Admin' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-200'}`}>
+                                                    <div className="flex justify-between items-baseline mb-1">
+                                                        <span className="font-bold text-sm mr-2">{entry.userId}</span>
+                                                        <span className="text-xs opacity-60">{new Date(entry.timestamp).toLocaleTimeString()}</span>
+                                                    </div>
+                                                    <p>{entry.message}</p>
+                                                    <button 
+                                                        onClick={async () => {
+                                                            if(window.confirm('Delete this message?')) {
+                                                                await removeGuestbook(entry.id);
+                                                                fetchGuestbookData();
+                                                            }
+                                                        }}
+                                                        className="text-xs text-red-400 hover:text-red-300 mt-2 underline"
+                                                    >
+                                                        Delete
+                                                    </button>
                                                 </div>
-                                                <button 
-                                                    onClick={async () => {
-                                                        if(window.confirm('Are you sure you want to delete this entry?')) {
-                                                            await removeGuestbook(entry.id);
-                                                            fetchGuestbookData(); // Refresh the list
-                                                        }
-                                                    }}
-                                                    className="bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded-md text-xs transition-colors"
-                                                >
-                                                    Delete
-                                                </button>
                                             </div>
-                                        )) : <p>No guestbook entries yet.</p>}
+                                        )) : <p className="text-center text-gray-500">No messages found.</p>}
                                     </div>
+                                    
+                                    <form onSubmit={handleAdminChatSubmit} className="flex gap-2">
+                                        <input 
+                                            type="text" 
+                                            value={adminReply} 
+                                            onChange={(e) => setAdminReply(e.target.value)} 
+                                            placeholder="Reply as Admin..." 
+                                            className="flex-1 bg-gray-700 border-none rounded-md p-3 text-white focus:ring-2 focus:ring-blue-500"
+                                        />
+                                        <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-md">Send</button>
+                                    </form>
                                 </div>
                            )}
 

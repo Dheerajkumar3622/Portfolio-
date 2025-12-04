@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 dotenv.config();
@@ -17,26 +18,21 @@ app.use(express.json({ limit: '50mb' })); // Increased limit for base64 images
 
 // MongoDB Connection Logic
 const MONGODB_URI = process.env.MONGODB_URI;
-const isProduction = process.env.NODE_ENV === 'production' || process.env.NODE_ENV !== 'development';
-
-// Only default to localhost if we are NOT in production
-const connectionString = MONGODB_URI || (isProduction ? null : 'mongodb://localhost:27017/portfolio_db');
 
 let isDbConnected = false;
 
 const connectDB = async () => {
-    if (!connectionString) {
-        console.warn("⚠️  MONGODB_URI is not defined. Running in static mode without database features.");
+    if (!MONGODB_URI) {
+        console.warn("⚠️  MONGODB_URI is not defined. Database features will not work.");
         return;
     }
 
     try {
-        await mongoose.connect(connectionString);
+        await mongoose.connect(MONGODB_URI);
         isDbConnected = true;
         console.log('✅ Connected to MongoDB');
     } catch (err) {
         console.error('❌ MongoDB connection error:', err.message);
-        console.warn("⚠️  Server continues running, but database features will fail.");
     }
 };
 
@@ -323,16 +319,28 @@ app.delete('/api/reports/:id', async (req, res) => {
 
 
 // Serve static files in production
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Use process.cwd() for reliable path resolution on render
+const distPath = path.join(process.cwd(), 'dist');
 
-if (isProduction) {
-  app.use(express.static(path.join(__dirname, 'dist')));
-
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-  });
+if (fs.existsSync(distPath)) {
+  console.log(`📂 Serving static files from: ${distPath}`);
+  app.use(express.static(distPath));
+} else {
+  console.warn(`⚠️  Dist folder not found at ${distPath}. Frontend will not be served.`);
 }
+
+// Catch-all route to serve React App for client-side routing
+app.get('*', (req, res) => {
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ error: 'API endpoint not found' });
+  }
+  
+  if (fs.existsSync(path.join(distPath, 'index.html'))) {
+      res.sendFile(path.join(distPath, 'index.html'));
+  } else {
+      res.status(404).send('Frontend not built or index.html missing.');
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

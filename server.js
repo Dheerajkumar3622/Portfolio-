@@ -14,41 +14,43 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors());
-app.use(express.json({ limit: '50mb' })); // Increased limit for base64 images
+app.use(express.json({ limit: '50mb' }));
 
-// MongoDB Connection Logic
-const MONGODB_URI = process.env.MONGODB_URI;
+// --- MongoDB Connection ---
+const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URL || process.env.DATABASE_URL;
 
 let isDbConnected = false;
+let dbConnectionError = null;
 
 const connectDB = async () => {
     if (!MONGODB_URI) {
-        console.warn("⚠️  MONGODB_URI is not defined. Database features will not work.");
+        const msg = "⚠️  MONGODB_URI is missing. App running in OFFLINE mode (serving frontend, but data won't persist to DB).";
+        console.warn(msg);
+        dbConnectionError = "Environment variable MONGODB_URI is missing.";
         return;
     }
 
     try {
         await mongoose.connect(MONGODB_URI);
         isDbConnected = true;
+        dbConnectionError = null;
         console.log('✅ Connected to MongoDB');
     } catch (err) {
+        isDbConnected = false;
+        dbConnectionError = err.message;
         console.error('❌ MongoDB connection error:', err.message);
     }
 };
 
 connectDB();
 
-
 // --- Schemas & Models ---
-
-// User Schema
 const userSchema = new mongoose.Schema({
-  id: { type: String, required: true, unique: true }, // Username
+  id: { type: String, required: true, unique: true },
   hashedPassword: { type: String, required: true }
 });
 const UserModel = mongoose.model('User', userSchema);
 
-// Guestbook Schema
 const guestbookSchema = new mongoose.Schema({
   id: String,
   userId: String,
@@ -58,7 +60,6 @@ const guestbookSchema = new mongoose.Schema({
 });
 const GuestbookModel = mongoose.model('Guestbook', guestbookSchema);
 
-// Lead Schema
 const leadSchema = new mongoose.Schema({
   id: String,
   timestamp: Number,
@@ -68,7 +69,6 @@ const leadSchema = new mongoose.Schema({
 });
 const LeadModel = mongoose.model('Lead', leadSchema);
 
-// Report Schema
 const reportSchema = new mongoose.Schema({
   id: String,
   timestamp: Number,
@@ -78,18 +78,20 @@ const reportSchema = new mongoose.Schema({
 });
 const ReportModel = mongoose.model('Report', reportSchema);
 
-// Portfolio Data Schema (Loose schema to accommodate nested objects easily)
 const portfolioSchema = new mongoose.Schema({
-  identifier: { type: String, default: 'main' }, // Singleton identifier
+  identifier: { type: String, default: 'main' },
   data: { type: mongoose.Schema.Types.Mixed, required: true }
 });
 const PortfolioModel = mongoose.model('Portfolio', portfolioSchema);
 
 
-// --- Helper for DB Safety ---
+// --- Helper: Check DB Status ---
 const dbCheck = (res) => {
     if (!isDbConnected) {
-        res.status(503).json({ error: 'Database service unavailable' });
+        res.status(503).json({ 
+            error: 'Database unavailable', 
+            details: dbConnectionError || 'Unknown connection error'
+        });
         return false;
     }
     return true;
@@ -97,16 +99,21 @@ const dbCheck = (res) => {
 
 // --- API Routes ---
 
-// 1. Portfolio Routes
+// Health Check
+app.get('/api/health', (req, res) => {
+    res.json({ 
+        status: 'ok', 
+        database: isDbConnected ? 'connected' : 'disconnected',
+        error: dbConnectionError
+    });
+});
+
+// Portfolio
 app.get('/api/portfolio', async (req, res) => {
   if (!dbCheck(res)) return;
   try {
     const portfolio = await PortfolioModel.findOne({ identifier: 'main' });
-    if (portfolio) {
-      res.json(portfolio.data);
-    } else {
-      res.json({}); // Return empty object if not initialized
-    }
+    res.json(portfolio ? portfolio.data : {});
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -115,10 +122,9 @@ app.get('/api/portfolio', async (req, res) => {
 app.post('/api/portfolio', async (req, res) => {
   if (!dbCheck(res)) return;
   try {
-    const newData = req.body;
     await PortfolioModel.findOneAndUpdate(
       { identifier: 'main' },
-      { data: newData },
+      { data: req.body },
       { upsert: true, new: true }
     );
     res.json({ success: true });
@@ -127,15 +133,13 @@ app.post('/api/portfolio', async (req, res) => {
   }
 });
 
-// 2. Auth Routes
+// Auth
 app.post('/api/auth/signup', async (req, res) => {
   if (!dbCheck(res)) return;
   try {
     const { id, hashedPassword } = req.body;
     const existing = await UserModel.findOne({ id });
-    if (existing) {
-      return res.status(400).json({ error: 'User already exists' });
-    }
+    if (existing) return res.status(400).json({ error: 'User already exists' });
     const newUser = new UserModel({ id, hashedPassword });
     await newUser.save();
     res.json({ success: true });
@@ -168,7 +172,7 @@ app.put('/api/auth/user', async (req, res) => {
 app.get('/api/auth/users', async (req, res) => {
   if (!dbCheck(res)) return;
   try {
-    const users = await UserModel.find({}, { hashedPassword: 0 }); // Exclude passwords
+    const users = await UserModel.find({}, { hashedPassword: 0 });
     res.json(users);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -185,18 +189,13 @@ app.delete('/api/auth/user/:id', async (req, res) => {
   }
 });
 
-// 3. Guestbook Routes
+// Guestbook (Chat)
 app.get('/api/guestbook', async (req, res) => {
   if (!dbCheck(res)) return;
   try {
     const limit = parseInt(req.query.limit) || 50;
     const offset = parseInt(req.query.offset) || 0;
-    
-    const entries = await GuestbookModel.find()
-      .sort({ timestamp: -1 })
-      .skip(offset)
-      .limit(limit);
-    
+    const entries = await GuestbookModel.find().sort({ timestamp: -1 }).skip(offset).limit(limit);
     res.json(entries);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -207,8 +206,7 @@ app.get('/api/guestbook/newer', async (req, res) => {
   if (!dbCheck(res)) return;
   try {
     const timestamp = parseInt(req.query.timestamp) || 0;
-    const entries = await GuestbookModel.find({ timestamp: { $gt: timestamp } })
-      .sort({ timestamp: -1 });
+    const entries = await GuestbookModel.find({ timestamp: { $gt: timestamp } }).sort({ timestamp: -1 });
     res.json(entries);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -219,7 +217,6 @@ app.post('/api/guestbook', async (req, res) => {
   if (!dbCheck(res)) return;
   try {
     const entry = req.body;
-    // Ensure ID and Timestamp are set
     const newEntry = new GuestbookModel({
       ...entry,
       id: entry.id || crypto.randomUUID(),
@@ -227,16 +224,6 @@ app.post('/api/guestbook', async (req, res) => {
       reactions: entry.reactions || {}
     });
     await newEntry.save();
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.put('/api/guestbook/:id', async (req, res) => {
-  if (!dbCheck(res)) return;
-  try {
-    await GuestbookModel.findOneAndUpdate({ id: req.params.id }, req.body);
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -253,7 +240,7 @@ app.delete('/api/guestbook/:id', async (req, res) => {
   }
 });
 
-// 4. Leads Routes
+// Leads & Reports
 app.get('/api/leads', async (req, res) => {
   if (!dbCheck(res)) return;
   try {
@@ -267,12 +254,7 @@ app.get('/api/leads', async (req, res) => {
 app.post('/api/leads', async (req, res) => {
   if (!dbCheck(res)) return;
   try {
-    const lead = req.body;
-    const newLead = new LeadModel({
-      ...lead,
-      id: crypto.randomUUID(),
-      timestamp: Date.now()
-    });
+    const newLead = new LeadModel({ ...req.body, id: crypto.randomUUID(), timestamp: Date.now() });
     await newLead.save();
     res.json({ success: true });
   } catch (error) {
@@ -280,7 +262,6 @@ app.post('/api/leads', async (req, res) => {
   }
 });
 
-// 5. Reports Routes
 app.get('/api/reports', async (req, res) => {
   if (!dbCheck(res)) return;
   try {
@@ -294,12 +275,7 @@ app.get('/api/reports', async (req, res) => {
 app.post('/api/reports', async (req, res) => {
   if (!dbCheck(res)) return;
   try {
-    const report = req.body;
-    const newReport = new ReportModel({
-      ...report,
-      id: crypto.randomUUID(),
-      timestamp: Date.now()
-    });
+    const newReport = new ReportModel({ ...req.body, id: crypto.randomUUID(), timestamp: Date.now() });
     await newReport.save();
     res.json({ success: true });
   } catch (error) {
@@ -318,30 +294,31 @@ app.delete('/api/reports/:id', async (req, res) => {
 });
 
 
-// Serve static files in production
-// Use process.cwd() for reliable path resolution on render
+// --- Static Files ---
 const distPath = path.join(process.cwd(), 'dist');
 
+// Serve static assets
 if (fs.existsSync(distPath)) {
   console.log(`📂 Serving static files from: ${distPath}`);
   app.use(express.static(distPath));
 } else {
-  console.warn(`⚠️  Dist folder not found at ${distPath}. Frontend will not be served.`);
+  console.warn(`⚠️  Dist folder not found. Please run 'npm run build'.`);
 }
 
-// Catch-all route to serve React App for client-side routing
+// Catch-all for SPA
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api')) {
     return res.status(404).json({ error: 'API endpoint not found' });
   }
   
-  if (fs.existsSync(path.join(distPath, 'index.html'))) {
-      res.sendFile(path.join(distPath, 'index.html'));
+  const indexPath = path.join(distPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
+      res.sendFile(indexPath);
   } else {
-      res.status(404).send('Frontend not built or index.html missing.');
+      res.status(404).send('Frontend application not found. Ensure build was successful.');
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Server running on port ${PORT}`);
 });

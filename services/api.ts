@@ -1,13 +1,6 @@
+
 import type { PortfolioData, GuestbookEntry, Lead, Report, User } from '../types';
 import * as DB from './db';
-
-// ====================================================================================
-// HYBRID API SERVICE (Offline-First)
-// ------------------------------------------------------------------------------------
-// This service attempts to communicate with the Express backend.
-// If the backend is unreachable (Network Error) or not set up (404/503),
-// it automatically falls back to the local IndexedDB (db.ts).
-// ====================================================================================
 
 const API_BASE = '/api';
 
@@ -23,9 +16,8 @@ const withFallback = async <T>(
     try {
         const response = await apiFn();
         
-        // If API endpoint is missing (404), service unavailable (503), or other server error
         if (!response.ok) {
-            console.warn(`API unavailable (Status: ${response.status}). Switching to local DB.`);
+            // console.warn(`API unavailable (Status: ${response.status}). Switching to local DB.`);
             return dbFn();
         }
 
@@ -33,8 +25,19 @@ const withFallback = async <T>(
         return transformApiData ? transformApiData(data) : data;
 
     } catch (error) {
-        console.warn("API Network Error (Backend likely down). Switching to local DB.", error);
+        // console.warn("API Network Error (Backend likely down). Switching to local DB.", error);
         return dbFn();
+    }
+};
+
+// Check backend status
+export const checkSystemHealth = async (): Promise<{ status: string; database: string }> => {
+    try {
+        const res = await fetch(`${API_BASE}/health`);
+        if (res.ok) return await res.json();
+        return { status: 'offline', database: 'disconnected' };
+    } catch {
+        return { status: 'offline', database: 'disconnected' };
     }
 };
 

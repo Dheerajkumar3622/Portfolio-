@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
 import type { PortfolioData, Education, Skill, Project, Experience, GuestbookEntry, Lead, SocialLink, Memory, Note, Report, User } from '../types';
 import TagInput from '../components/TagInput';
-import { fetchGuestbook, removeGuestbook, fetchLeads, fetchReports, removeReport, fetchAllUsers, removeUser, postGuestbook } from '../services/api';
+import { fetchGuestbook, removeGuestbook, fetchLeads, fetchReports, removeReport, fetchAllUsers, removeUser, postGuestbook, checkSystemHealth } from '../services/api';
 import { GoogleGenAI } from "@google/genai";
 
 const STORAGE_KEY_AUTH = 'adminAuth';
@@ -180,6 +180,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     const [activeTab, setActiveTab] = useState('Profile');
     const [isDirty, setIsDirty] = useState(false);
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+    const [systemHealth, setSystemHealth] = useState<{status: string, database: string}>({ status: 'checking', database: 'unknown' });
 
     // Chat reply state
     const [adminReply, setAdminReply] = useState('');
@@ -204,6 +205,15 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
             setIsDirty(false);
         }
     }, [localData, portfolioData]);
+
+    // Check health on mount
+    useEffect(() => {
+        const check = async () => {
+            const health = await checkSystemHealth();
+            setSystemHealth(health);
+        };
+        check();
+    }, []);
 
     const fetchGuestbookData = async () => {
         setGuestbookEntries(await fetchGuestbook({limit: 50})); // Load recent for chat view
@@ -630,6 +640,16 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
 
     return (
         <div className="bg-gray-900 text-white min-h-screen">
+            {/* Status Banner */}
+            <div className={`p-2 text-center text-sm font-bold ${systemHealth.database === 'connected' ? 'bg-green-600' : 'bg-red-600'}`}>
+                {systemHealth.database === 'connected' 
+                    ? "🟢 System Online: Database Connected. All changes are live."
+                    : "🔴 Offline Mode: Database Not Connected. Data is saved to local storage only."}
+                {systemHealth.database !== 'connected' && (
+                    <span className="ml-2 underline cursor-help" title="Add MONGODB_URI to Render Environment Variables to fix this.">Why?</span>
+                )}
+            </div>
+
             <div className="container mx-auto p-4 md:p-8">
                 <header className="flex flex-col sm:flex-row justify-between sm:items-center mb-8 pb-4 border-b border-gray-700">
                     <h1 className="text-4xl font-bold mb-4 sm:mb-0">Admin Dashboard</h1>

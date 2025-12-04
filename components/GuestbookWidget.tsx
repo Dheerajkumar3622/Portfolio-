@@ -7,10 +7,10 @@ import { useAuth } from '../context/AuthContext';
 // --- Config ---
 const MESSAGE_MAX_LENGTH = 280;
 const POST_TIMESTAMPS_KEY = 'guestbookPostTimestamps';
-const RATE_LIMIT_COUNT = 10; // Increased for chat
+const RATE_LIMIT_COUNT = 10;
 const RATE_LIMIT_WINDOW = 60000; // 1 minute
 const MESSAGES_PER_PAGE = 50;
-const POLLING_INTERVAL = 3000; // Faster polling for chat feel
+const POLLING_INTERVAL = 2000; // Fast polling for "live" feel
 
 const PROFANITY_BLOCKLIST = ['badword', 'profanity', 'offensive']; 
 
@@ -30,6 +30,7 @@ const formatTime = (timestamp: number): string => {
 };
 
 const getAvatarColor = (name: string) => {
+    if (name === 'Admin') return 'bg-blue-600';
     const colors = ['bg-cyan-500', 'bg-lime-500', 'bg-violet-500', 'bg-rose-500', 'bg-amber-500', 'bg-emerald-500', 'bg-sky-500'];
     let hash = 0;
     for (let i = 0; i < name.length; i++) {
@@ -39,8 +40,8 @@ const getAvatarColor = (name: string) => {
 };
 
 const Avatar: React.FC<{ name: string; size?: string }> = ({ name, size = "w-8 h-8 text-sm" }) => (
-    <div className={`${size} rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold ${getAvatarColor(name)}`}>
-        {name.charAt(0).toUpperCase()}
+    <div className={`${size} rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold shadow-sm ${getAvatarColor(name)}`}>
+        {name === 'Admin' ? 'A' : name.charAt(0).toUpperCase()}
     </div>
 );
 
@@ -51,6 +52,7 @@ const ChatBubble: React.FC<{
     onReport: (entry: GuestbookEntry) => void 
 }> = ({ entry, isMe, onReport }) => {
     const [showOptions, setShowOptions] = useState(false);
+    const isAdmin = entry.userId === 'Admin';
 
     return (
         <div 
@@ -58,7 +60,7 @@ const ChatBubble: React.FC<{
             onMouseEnter={() => setShowOptions(true)}
             onMouseLeave={() => setShowOptions(false)}
         >
-            <div className={`flex max-w-[80%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+            <div className={`flex max-w-[85%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                 {/* Avatar */}
                 <div className={`flex-shrink-0 ${isMe ? 'ml-2' : 'mr-2'} mt-auto`}>
                     <Avatar name={entry.userId} />
@@ -68,10 +70,19 @@ const ChatBubble: React.FC<{
                 <div className={`relative px-4 py-2 rounded-2xl shadow-sm text-sm ${
                     isMe 
                     ? 'bg-accent text-white rounded-br-none' 
-                    : 'bg-base-100 text-text-primary border border-text-secondary/10 rounded-bl-none'
+                    : isAdmin 
+                        ? 'bg-blue-50 border-2 border-blue-200 text-blue-900 rounded-bl-none'
+                        : 'bg-base-100 text-text-primary border border-text-secondary/10 rounded-bl-none'
                 }`}>
                     {/* User ID on received messages */}
-                    {!isMe && <div className="text-xs font-bold text-accent mb-1">{entry.userId}</div>}
+                    {!isMe && (
+                        <div className={`text-xs font-bold mb-1 flex items-center gap-1 ${isAdmin ? 'text-blue-600' : 'text-accent'}`}>
+                            {entry.userId}
+                            {isAdmin && (
+                                <span className="bg-blue-600 text-white text-[10px] px-1.5 rounded-full uppercase tracking-wider">Admin</span>
+                            )}
+                        </div>
+                    )}
                     
                     <p className="whitespace-pre-wrap break-words">{entry.message}</p>
                     
@@ -80,10 +91,10 @@ const ChatBubble: React.FC<{
                     </div>
 
                     {/* Options (Report) */}
-                    {showOptions && !isMe && (
+                    {showOptions && !isMe && !isAdmin && (
                         <button 
                             onClick={() => onReport(entry)} 
-                            className="absolute -top-6 right-0 bg-secondary text-xs px-2 py-1 rounded shadow text-red-400 hover:text-red-500 opacity-90"
+                            className="absolute -top-6 right-0 bg-secondary text-xs px-2 py-1 rounded shadow text-red-400 hover:text-red-500 opacity-90 transition-opacity"
                         >
                             Report
                         </button>
@@ -249,7 +260,7 @@ const GuestbookWidget: React.FC = () => {
                     {/* Header */}
                     <div className="bg-gradient-to-r from-accent to-highlight p-4 text-white font-bold flex justify-between items-center shadow-md z-10">
                         <div className="flex items-center space-x-2">
-                            <span>Public Chat Room</span>
+                            <span>Public Chat</span>
                             <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
                         </div>
                         <button onClick={handleToggle} className="hover:bg-white/20 rounded-full p-1 text-sm">Close</button>
@@ -308,7 +319,7 @@ const GuestbookWidget: React.FC = () => {
                         ) : (
                             <div className="text-center py-2">
                                 <p className="text-sm text-text-secondary mb-2">Join the conversation</p>
-                                <button onClick={() => alert("Please click the 'Login / Sign Up' button in the top navigation bar.")} className="bg-accent text-white px-6 py-2 rounded-full text-sm font-bold shadow hover:bg-highlight transition-colors w-full">
+                                <button onClick={() => alert("Please click the 'Login / Sign Up' button in the top navigation bar to create an account.")} className="bg-accent text-white px-6 py-2 rounded-full text-sm font-bold shadow hover:bg-highlight transition-colors w-full">
                                     Login to Chat
                                 </button>
                             </div>

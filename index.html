@@ -41,6 +41,7 @@
       html {
         scroll-behavior: smooth;
         font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        overflow-x: hidden; /* Prevent horizontal scroll */
       }
       
       body {
@@ -48,6 +49,8 @@
         background-attachment: fixed;
         color: var(--color-text-primary);
         transition: background 0.5s ease, color 0.5s ease;
+        overflow-x: hidden; /* Prevent horizontal scroll */
+        width: 100%;
       }
 
       /* Custom Scrollbar for premium feel */

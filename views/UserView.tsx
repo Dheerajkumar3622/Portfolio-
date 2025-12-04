@@ -284,7 +284,7 @@ const UserView: React.FC = () => {
   };
 
   return (
-    <div className="bg-primary text-text-primary min-h-screen">
+    <div className="bg-primary text-text-primary min-h-screen overflow-x-hidden">
       {isAuthModalOpen && <AuthModal onClose={() => setIsAuthModalOpen(false)} />}
       <Header 
         name={profile.name} 

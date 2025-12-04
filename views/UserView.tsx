@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useAuth } from '../context/AuthContext';
@@ -26,107 +25,90 @@ const Header: React.FC<{ name: string; title: string; activeSection: string; onP
     
     const navLinks = [
         { href: '#about', label: 'About', id: 'about' },
-        { href: '#memories', label: 'Memories', id: 'memories' },
-        { href: '#skills', label: 'Skills', id: 'skills' },
-        { href: '#projects', label: 'Projects', id: 'projects' },
+        { href: '#skills', label: 'Expertise', id: 'skills' },
+        { href: '#projects', label: 'Work', id: 'projects' },
         { href: '#experience', label: 'Experience', id: 'experience' },
-        { href: '#notes', label: 'Notes', id: 'notes' },
+        { href: '#notes', label: 'Resources', id: 'notes' },
     ];
 
     const AuthControls: React.FC<{ isMobile?: boolean }> = ({ isMobile }) => {
-        const baseClasses = "transition-colors font-semibold";
-        const mobileClasses = isMobile ? "text-2xl" : "text-sm";
-
+        const baseClasses = "transition-all font-medium text-sm";
+        
         if (currentUser) {
             return (
                 <div className={`flex ${isMobile ? 'flex-col items-center space-y-4' : 'items-center space-x-4'}`}>
-                    <span className={`text-text-secondary ${mobileClasses}`}>ID: <span className="font-bold text-accent">{currentUser.id}</span></span>
-                    <button onClick={onProfileClick} className={`${baseClasses} ${mobileClasses} text-text-secondary hover:text-accent`}>Profile</button>
-                    <button onClick={logout} className={`${baseClasses} ${mobileClasses} bg-highlight text-white px-4 py-2 rounded-full hover:opacity-90 shadow-md`}>Logout</button>
+                    <span className="text-text-secondary text-xs uppercase tracking-wider">ID: {currentUser.id}</span>
+                    <button onClick={onProfileClick} className="text-text-primary hover:text-accent">Profile</button>
+                    <button onClick={logout} className="text-text-secondary hover:text-red-500">Logout</button>
                 </div>
             );
         }
         return (
-             <button onClick={onLoginClick} className={`${baseClasses} ${mobileClasses} bg-accent text-white px-4 py-2 rounded-full hover:opacity-90 shadow-md`}>
-                Login / Sign Up
+             <button onClick={onLoginClick} className={`${baseClasses} bg-highlight text-primary px-5 py-2 rounded-full hover:opacity-90 shadow-md`}>
+                Sign In
             </button>
         );
     };
 
     return (
-        <header className="sticky top-0 z-30 w-full p-4 bg-primary/70 backdrop-blur-xl border-b border-text-secondary/10 shadow-sm">
-            <div className="container mx-auto flex justify-between items-center">
-                <div>
-                    <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-accent to-highlight">
-                      {name}
-                    </h1>
-                    <p className="text-sm text-text-secondary -mt-1">{title}</p>
+        <header className="sticky top-0 z-30 w-full bg-primary/80 backdrop-blur-md border-b border-secondary/50">
+            <div className="container mx-auto px-6 py-4 flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-highlight rounded-lg"></div>
+                    <div>
+                        <h1 className="text-lg font-bold text-highlight tracking-tight leading-none">
+                          {name}
+                        </h1>
+                    </div>
                 </div>
                 
                 {/* Desktop Nav */}
-                <nav className="hidden md:flex space-x-6 text-text-primary font-medium items-center">
+                <nav className="hidden md:flex space-x-8 text-sm font-medium text-text-secondary items-center">
                     {navLinks.map(link => (
-                         <a key={link.href} href={link.href} className={`transition-colors relative ${activeSection === link.id ? 'text-accent' : 'hover:text-accent'}`}>
+                         <a key={link.href} href={link.href} className={`transition-colors hover:text-highlight ${activeSection === link.id ? 'text-highlight font-semibold' : ''}`}>
                             {link.label}
-                            {activeSection === link.id && <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-accent rounded-full"></span>}
                          </a>
                     ))}
-                    <a href="#contact" className="hover:text-accent">Contact</a>
+                    <a href="#contact" className="hover:text-highlight">Contact</a>
+                    
                     <button 
                         onClick={toggleTheme} 
-                        className="p-2 rounded-full hover:bg-base-100 transition-colors text-text-primary"
+                        className="p-2 rounded-full hover:bg-secondary transition-colors text-text-primary"
                         aria-label="Toggle Dark Mode"
                     >
                         {isDarkMode ? (
-                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                             </svg>
                         ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                             </svg>
                         )}
                     </button>
-                    <div className="w-px h-6 bg-text-secondary/30"></div>
                     <AuthControls />
                 </nav>
 
                 {/* Mobile Menu Button */}
                 <div className="flex items-center gap-4 md:hidden">
-                    <button 
-                        onClick={toggleTheme} 
-                        className="p-2 rounded-full hover:bg-base-100 transition-colors text-text-primary"
-                         aria-label="Toggle Dark Mode"
-                    >
-                         {isDarkMode ? (
-                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                            </svg>
-                        ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                            </svg>
-                        )}
+                    <button onClick={toggleTheme} className="text-text-primary">
+                         {isDarkMode ? '☀️' : '🌙'}
                     </button>
                     <button className="z-50" onClick={() => setIsMenuOpen(!isMenuOpen)} aria-label="Toggle menu">
-                        <div className="w-6 h-6 flex flex-col justify-around">
-                            <span className={`block w-full h-0.5 bg-text-primary transition-transform duration-300 ${isMenuOpen ? 'rotate-45 translate-y-[5px]' : ''}`}></span>
-                            <span className={`block w-full h-0.5 bg-text-primary transition-opacity duration-300 ${isMenuOpen ? 'opacity-0' : ''}`}></span>
-                            <span className={`block w-full h-0.5 bg-text-primary transition-transform duration-300 ${isMenuOpen ? '-rotate-45 -translate-y-[5px]' : ''}`}></span>
+                        <div className="space-y-1.5">
+                            <span className={`block w-6 h-0.5 bg-text-primary transition-all ${isMenuOpen ? 'rotate-45 translate-y-2' : ''}`}></span>
+                            <span className={`block w-6 h-0.5 bg-text-primary transition-all ${isMenuOpen ? 'opacity-0' : ''}`}></span>
+                            <span className={`block w-6 h-0.5 bg-text-primary transition-all ${isMenuOpen ? '-rotate-45 -translate-y-2' : ''}`}></span>
                         </div>
                     </button>
                 </div>
 
                 {/* Mobile Nav */}
-                <div className={`fixed top-0 left-0 w-full h-full bg-primary/95 backdrop-blur-lg z-40 transform transition-transform duration-300 ${isMenuOpen ? 'translate-x-0' : 'translate-x-full'} md:hidden`}>
-                     <nav className="flex flex-col items-center justify-center h-full space-y-8 text-2xl text-text-primary font-medium">
-                        {navLinks.map(link => (
-                             <a key={link.href} href={link.href} className="hover:text-accent transition-colors" onClick={() => setIsMenuOpen(false)}>{link.label}</a>
-                        ))}
-                        <a href="#contact" className="hover:text-accent transition-colors" onClick={() => setIsMenuOpen(false)}>Contact</a>
-                        <div className="w-24 h-px bg-text-secondary/30 my-4"></div>
-                        <AuthControls isMobile={true} />
-                    </nav>
+                <div className={`fixed inset-0 bg-primary z-40 flex flex-col items-center justify-center space-y-8 transition-transform duration-300 ${isMenuOpen ? 'translate-x-0' : 'translate-x-full'} md:hidden`}>
+                     {navLinks.map(link => (
+                          <a key={link.href} href={link.href} className="text-2xl font-bold text-text-primary" onClick={() => setIsMenuOpen(false)}>{link.label}</a>
+                     ))}
+                     <AuthControls isMobile={true} />
                 </div>
             </div>
         </header>
@@ -135,32 +117,50 @@ const Header: React.FC<{ name: string; title: string; activeSection: string; onP
 
 
 const Hero: React.FC<{ profile: any }> = ({ profile }) => (
-    <section id="about" className="container mx-auto px-8 pt-24 pb-16">
-        {/* Text section, now full width and centered */}
-        <div className="w-full animate-fade-in-up text-center bg-secondary/50 backdrop-blur-md border border-secondary/30 rounded-lg py-12 md:py-16">
-            <h2 className="text-4xl md:text-6xl font-extrabold mb-4 text-text-primary">
-                Hi, I'm <span className="bg-clip-text text-transparent bg-gradient-to-r from-accent to-highlight">{profile.name}</span>
+    <section id="about" className="container mx-auto px-6 py-24 md:py-32 flex flex-col md:flex-row items-center gap-12">
+        <div className="flex-1 text-center md:text-left animate-fade-in-up">
+            <span className="inline-block py-1 px-3 rounded-full bg-secondary text-accent text-xs font-bold tracking-widest uppercase mb-6">
+                Portfolio
+            </span>
+            <h2 className="text-5xl md:text-7xl font-bold mb-6 text-text-primary tracking-tight leading-tight">
+                {profile.name}
             </h2>
-            <h3 className="text-2xl md:text-3xl text-text-secondary mb-6 h-10">
+            <h3 className="text-xl md:text-2xl text-text-secondary mb-8 font-light h-8">
                 <Typewriter text={profile.title} speed={50} />
             </h3>
-            <p className="text-text-secondary max-w-2xl mx-auto mb-8">{profile.about}</p>
-            <SocialLinks links={profile.socialLinks} center={true} />
+            <p className="text-text-secondary text-lg leading-relaxed max-w-xl mb-8 mx-auto md:mx-0">
+                {profile.about}
+            </p>
+            <div className="flex justify-center md:justify-start gap-4">
+                <a href="#projects" className="bg-highlight text-primary px-8 py-3 rounded-full font-medium hover:opacity-90 transition-opacity">View Work</a>
+                <a href="#contact" className="border border-text-secondary/30 text-text-primary px-8 py-3 rounded-full font-medium hover:bg-secondary transition-colors">Contact</a>
+            </div>
+            <div className="mt-8 flex justify-center md:justify-start">
+                <SocialLinks links={profile.socialLinks} />
+            </div>
+        </div>
+        <div className="flex-1 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+             <div className="relative w-64 h-64 md:w-96 md:h-96 mx-auto">
+                <div className="absolute inset-0 bg-gradient-to-tr from-accent to-highlight rounded-full opacity-10 blur-2xl"></div>
+                <img 
+                    src={profile.profilePicture || "https://picsum.photos/400/400"} 
+                    alt={profile.name} 
+                    className="relative w-full h-full object-cover rounded-2xl shadow-premium rotate-3 hover:rotate-0 transition-transform duration-500"
+                />
+             </div>
         </div>
     </section>
 );
 
-const SVGWave: React.FC<{ color: string }> = ({ color }) => (
-    <div className="relative -mb-1 text-base-100">
-        <svg className="w-full h-auto" viewBox="0 0 1440 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-             {/* Use current text color (set by parent class) for the fill, allowing it to adapt */}
-            <path d="M0 20C240 73.3333 480 90 720 70C960 50 1200 -10 1440 20V100H0V20Z" fill="currentColor"/>
-        </svg>
+const SectionHeading: React.FC<{ title: string; subtitle?: string }> = ({ title, subtitle }) => (
+    <div className="text-center mb-16">
+        {subtitle && <span className="text-accent text-xs font-bold tracking-widest uppercase mb-2 block">{subtitle}</span>}
+        <h2 className="text-3xl md:text-4xl font-bold text-text-primary tracking-tight">{title}</h2>
+        <div className="w-12 h-1 bg-accent mx-auto mt-4 rounded-full"></div>
     </div>
 );
 
-
-const AnimatedSection: React.FC<{ id: string; title: string; children: React.ReactNode }> = ({ id, title, children }) => {
+const AnimatedSection: React.FC<{ id: string; title: string; subtitle?: string; className?: string; children: React.ReactNode }> = ({ id, title, subtitle, className, children }) => {
     const ref = useRef<HTMLDivElement>(null);
     const isVisible = useOnScreen(ref, { threshold: 0.1 });
 
@@ -168,117 +168,64 @@ const AnimatedSection: React.FC<{ id: string; title: string; children: React.Rea
         <section
             ref={ref}
             id={id}
-            className={`container mx-auto p-8 my-8 transform transition-all duration-700 ease-out ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
+            className={`py-24 px-6 ${className || ''} transition-opacity duration-1000 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
         >
-            <h2 className="text-4xl font-bold text-center text-text-primary mb-12 relative inline-block left-1/2 -translate-x-1/2">
-                {title}
-                <span className="absolute -bottom-2 left-0 w-full h-1 bg-gradient-to-r from-accent to-highlight rounded-full"></span>
-            </h2>
-            {children}
+            <div className="container mx-auto">
+                <SectionHeading title={title} subtitle={subtitle} />
+                {children}
+            </div>
         </section>
     );
 };
 
-const AnimatedItem: React.FC<{ children: React.ReactNode; delay?: number; className?: string }> = ({ children, delay = 0, className }) => {
-    const ref = useRef<HTMLDivElement>(null);
-    const isVisible = useOnScreen(ref, { threshold: 0.1 });
-
-    return (
-        <div
-            ref={ref}
-            className={`transform transition-all duration-700 ease-out ${className || ''} ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
-            style={{ transitionDelay: `${delay}ms` }}
-        >
-            {children}
-        </div>
-    );
-};
-
 const ContactForm = () => {
-    const [name, setName] = useState('');
-    const [email, setEmail] = useState('');
-    const [message, setMessage] = useState('');
-    const [status, setStatus] = useState({ type: '', text: '' });
-    const [isSubmitted, setIsSubmitted] = useState(false);
+    const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+    const [formData, setFormData] = useState({ name: '', email: '', message: '' });
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setStatus({ type: '', text: '' });
-
-        if (!name || !email || !message) {
-            setStatus({ type: 'error', text: 'Please fill out all fields.' });
-            return;
-        }
-
+        setStatus('submitting');
         try {
-            await postLead({ name, email, message });
-            setStatus({ type: 'success', text: 'Thank you! Your message has been sent.' });
-            setIsSubmitted(true);
-            setName('');
-            setEmail('');
-            setMessage('');
-        } catch (error) {
-            console.error("Failed to save lead:", error);
-            setStatus({ type: 'error', text: 'Something went wrong. Please try again later.' });
+            await postLead(formData);
+            setStatus('success');
+            setFormData({ name: '', email: '', message: '' });
+        } catch {
+            setStatus('error');
         }
     };
 
-    if (isSubmitted) {
-        return (
-            <div className="text-center bg-secondary/60 backdrop-blur-md border border-secondary/30 p-12 rounded-lg shadow-md animate-fade-in-up">
-                <svg className="w-16 h-16 mx-auto mb-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                <h3 className="text-2xl font-bold text-text-primary mb-2">Thank You!</h3>
-                <p className="text-text-secondary">Your message has been received. I'll get back to you shortly.</p>
-                <button onClick={() => setIsSubmitted(false)} className="mt-6 bg-accent text-white font-bold py-2 px-4 rounded-md hover:bg-highlight transition-colors">Send Another Message</button>
-            </div>
-        )
-    }
-
     return (
-        <div className="max-w-2xl mx-auto">
-            <h2 className="text-3xl font-bold text-text-primary mb-4 text-center">Get In Touch</h2>
-             <form onSubmit={handleSubmit} className="space-y-4 bg-secondary/60 backdrop-blur-md border border-secondary/30 p-8 rounded-lg shadow-md">
-                {status.text && status.type === 'error' && <p className={`p-3 rounded-md text-center bg-red-100 text-red-700`}>{status.text}</p>}
-                <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-text-secondary">Name</label>
-                    <input type="text" id="name" value={name} onChange={e => setName(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-primary/80 border border-text-secondary/20 text-text-primary rounded-md shadow-sm placeholder-text-secondary/50 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent" />
+        <div className="max-w-xl mx-auto bg-secondary p-8 rounded-2xl shadow-premium">
+             {status === 'success' ? (
+                <div className="text-center py-8">
+                    <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">✓</div>
+                    <h3 className="text-xl font-bold mb-2">Message Sent</h3>
+                    <p className="text-text-secondary">I'll get back to you soon.</p>
+                    <button onClick={() => setStatus('idle')} className="mt-4 text-accent font-medium">Send another</button>
                 </div>
-                 <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-text-secondary">Email</label>
-                    <input type="email" id="email" value={email} onChange={e => setEmail(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-primary/80 border border-text-secondary/20 text-text-primary rounded-md shadow-sm placeholder-text-secondary/50 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent" />
-                </div>
-                 <div>
-                    <label htmlFor="message" className="block text-sm font-medium text-text-secondary">Message</label>
-                    <textarea id="message" value={message} onChange={e => setMessage(e.target.value)} rows={4} className="mt-1 block w-full px-3 py-2 bg-primary/80 border border-text-secondary/20 text-text-primary rounded-md shadow-sm placeholder-text-secondary/50 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"></textarea>
-                </div>
-                <button type="submit" className="w-full bg-accent text-white font-bold py-3 px-4 rounded-md hover:bg-highlight transition-colors">Send Message</button>
-             </form>
+             ) : (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold uppercase text-text-secondary">Name</label>
+                            <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-primary border border-secondary rounded-lg p-3 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/50" />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold uppercase text-text-secondary">Email</label>
+                            <input required type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full bg-primary border border-secondary rounded-lg p-3 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/50" />
+                        </div>
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-xs font-bold uppercase text-text-secondary">Message</label>
+                        <textarea required rows={4} value={formData.message} onChange={e => setFormData({...formData, message: e.target.value})} className="w-full bg-primary border border-secondary rounded-lg p-3 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/50"></textarea>
+                    </div>
+                    <button disabled={status === 'submitting'} type="submit" className="w-full bg-highlight text-primary font-bold py-3 rounded-lg hover:opacity-90 transition-opacity">
+                        {status === 'submitting' ? 'Sending...' : 'Send Message'}
+                    </button>
+                    {status === 'error' && <p className="text-red-500 text-sm text-center">Failed to send. Please try again.</p>}
+                </form>
+             )}
         </div>
-    );
-};
-
-const FileIcon: React.FC<{ mimeType: string }> = ({ mimeType }) => {
-    // Icon for Images
-    if (mimeType.startsWith('image/')) {
-        return (
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-        );
-    }
-    // Icon for PDFs
-    if (mimeType === 'application/pdf') {
-        return (
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-        );
-    }
-    // Default Icon for other documents (Word, etc.)
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
     );
 };
 
@@ -291,25 +238,22 @@ const UserView: React.FC = () => {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
-  const allTechs = [...new Set(projects.flatMap(p => p.technologies))].sort();
+  // Derive unique categories for filter
+  const allTechs = [...new Set(projects.flatMap(p => p.technologies))].slice(0, 6); // Limit to top 6
 
   const filteredProjects = selectedTech
     ? projects.filter(p => p.technologies.includes(selectedTech))
     : projects;
 
   useEffect(() => {
-    // Prevent body scroll when modal is open
     document.body.style.overflow = (selectedProject || isProfileModalOpen || isAuthModalOpen) ? 'hidden' : 'auto';
-    return () => {
-        document.body.style.overflow = 'auto';
-    };
+    return () => { document.body.style.overflow = 'auto'; };
   }, [selectedProject, isProfileModalOpen, isAuthModalOpen]);
   
   useEffect(() => {
     const handleScroll = () => {
-        const sections = ['about', 'skills', 'projects', 'memories', 'experience', 'education', 'notes', 'promo', 'contact'];
-        const scrollPosition = window.scrollY + window.innerHeight / 2;
-
+        const sections = ['about', 'skills', 'projects', 'experience', 'notes', 'contact'];
+        const scrollPosition = window.scrollY + 200;
         for (const id of sections) {
             const element = document.getElementById(id);
             if (element && scrollPosition >= element.offsetTop && scrollPosition < element.offsetTop + element.offsetHeight) {
@@ -318,7 +262,6 @@ const UserView: React.FC = () => {
             }
         }
     };
-
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -327,40 +270,21 @@ const UserView: React.FC = () => {
     try {
         const response = await fetch(note.fileData);
         const blob = await response.blob();
-        
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
         link.setAttribute('download', note.fileName);
-        
         document.body.appendChild(link);
         link.click();
-        
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
-    } catch (error) {
-        console.error('Download failed:', error);
-        alert('Sorry, the file could not be downloaded.');
+    } catch {
+        alert('Download failed.');
     }
   };
-
-  const handleNavigate = (sectionId: string) => {
-    const element = document.getElementById(sectionId);
-    element?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const handleOpenProject = (projectId: string) => {
-    const project = projects.find(p => p.id === projectId);
-    if (project) {
-        setSelectedProject(project);
-    } else {
-        console.warn(`Project with ID "${projectId}" not found.`);
-    }
-  };
-
 
   return (
-    <div className="relative bg-transparent text-text-primary overflow-x-hidden">
+    <div className="bg-primary text-text-primary min-h-screen">
       {isAuthModalOpen && <AuthModal onClose={() => setIsAuthModalOpen(false)} />}
       <Header 
         name={profile.name} 
@@ -369,207 +293,161 @@ const UserView: React.FC = () => {
         onProfileClick={() => setIsProfileModalOpen(true)}
         onLoginClick={() => setIsAuthModalOpen(true)}
       />
+      
       <main>
         <Hero profile={profile} />
         
-        <SVGWave color="text-base-100" />
-        <div className='bg-base-100'>
-            {memories && memories.length > 0 && (
-                <AnimatedSection id="memories" title="Memories">
-                    <MemoriesSection memories={memories} />
-                </AnimatedSection>
-            )}
-            <AnimatedSection id="skills" title="My Skills">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {skills.map(skill => (
-                        <SkillBar key={skill.id} name={skill.name} level={skill.level} />
-                    ))}
-                </div>
-            </AnimatedSection>
-        </div>
-        <div className="text-primary transform scale-y-[-1]">
-            <SVGWave color="text-base-100" />
-        </div>
+        {/* Skills Section - Clean Grid */}
+        <AnimatedSection id="skills" title="Technical Expertise" subtitle="Capabilities" className="bg-secondary/30">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {skills.map(skill => (
+                    <SkillBar key={skill.id} name={skill.name} level={skill.level} />
+                ))}
+            </div>
+        </AnimatedSection>
 
-        <AnimatedSection id="projects" title="Projects">
+        {/* Projects Section - Minimal Cards */}
+        <AnimatedSection id="projects" title="Selected Works" subtitle="Portfolio">
             <div className="flex flex-wrap justify-center gap-2 mb-12">
                 <button
                     onClick={() => setSelectedTech(null)}
-                    className={`px-4 py-2 text-sm font-semibold rounded-full transition-all duration-300 shadow-sm ${
-                        !selectedTech
-                            ? 'bg-gradient-to-r from-accent to-highlight text-white scale-105'
-                            : 'bg-secondary text-text-secondary hover:bg-base-100 shadow-sm border border-text-secondary/10'
-                    }`}
+                    className={`px-4 py-2 text-sm font-medium rounded-full transition-all ${!selectedTech ? 'bg-highlight text-primary shadow-lg' : 'bg-secondary text-text-secondary hover:bg-secondary/80'}`}
                 >
-                    All Projects
+                    All
                 </button>
                 {allTechs.map(tech => (
                     <button
                         key={tech}
                         onClick={() => setSelectedTech(tech)}
-                        className={`px-4 py-2 text-sm font-semibold rounded-full transition-all duration-300 shadow-sm ${
-                            selectedTech === tech
-                                ? 'bg-gradient-to-r from-accent to-highlight text-white scale-105'
-                                : 'bg-secondary text-text-secondary hover:bg-base-100 shadow-sm border border-text-secondary/10'
-                        }`}
+                        className={`px-4 py-2 text-sm font-medium rounded-full transition-all ${selectedTech === tech ? 'bg-highlight text-primary shadow-lg' : 'bg-secondary text-text-secondary hover:bg-secondary/80'}`}
                     >
                         {tech}
                     </button>
                 ))}
             </div>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {filteredProjects.map((project, index) => (
-                     <AnimatedItem key={project.id} delay={index * 150}>
-                        <div className="bg-secondary/60 backdrop-blur-md border border-secondary/30 shadow-lg rounded-xl flex flex-col transition-all duration-300 hover:shadow-2xl hover:shadow-glow-highlight hover:border-accent/50 hover:-translate-y-2 hover:scale-105 hover:-rotate-1 group h-full">
-                             <img src={project.imageGallery[0] || 'https://picsum.photos/800/600'} alt={project.title} className="rounded-t-xl object-cover h-48 w-full"/>
-                             <div className="p-6 flex flex-col flex-grow">
-                                <h3 className="text-2xl font-bold text-accent mb-2">{project.title}</h3>
-                                <p className="text-text-secondary mb-4 flex-grow">{project.description}</p>
-                                <div className="mb-4">
-                                    {project.technologies.slice(0, 4).map((tech, index) => (
-                                        <button key={index} 
-                                            onClick={() => setSelectedTech(tech)}
-                                            className="inline-block bg-accent/20 text-accent text-xs font-semibold mr-2 mb-2 px-3 py-1 rounded-full hover:bg-accent/30 transition-colors focus:outline-none focus:ring-2 focus:ring-accent">
-                                            {tech}
-                                        </button>
-                                    ))}
-                                </div>
-                                <button onClick={() => setSelectedProject(project)} className="mt-auto bg-highlight text-white font-bold py-2 px-4 rounded-md hover:opacity-90 transition-opacity self-start">Learn More</button>
+                {filteredProjects.map((project) => (
+                    <div 
+                        key={project.id} 
+                        onClick={() => setSelectedProject(project)}
+                        className="group cursor-pointer bg-primary rounded-2xl overflow-hidden shadow-premium hover:shadow-premium-hover transition-all duration-300 hover:-translate-y-1 border border-secondary"
+                    >
+                         <div className="h-56 overflow-hidden">
+                            <img src={project.imageGallery[0] || 'https://picsum.photos/800/600'} alt={project.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"/>
+                         </div>
+                         <div className="p-8">
+                            <h3 className="text-2xl font-bold text-text-primary mb-2 group-hover:text-accent transition-colors">{project.title}</h3>
+                            <p className="text-text-secondary mb-6 line-clamp-2">{project.description}</p>
+                            <div className="flex flex-wrap gap-2">
+                                {project.technologies.slice(0, 3).map((tech, i) => (
+                                    <span key={i} className="text-xs font-bold uppercase tracking-wider text-text-secondary bg-secondary px-2 py-1 rounded">
+                                        {tech}
+                                    </span>
+                                ))}
                             </div>
                         </div>
-                    </AnimatedItem>
+                    </div>
                 ))}
             </div>
         </AnimatedSection>
         
-        <SVGWave color="text-base-100" />
-        <div className='bg-base-100'>
-            <AnimatedSection id="experience" title="Experience">
-                <div className="space-y-8 relative before:absolute before:inset-0 before:ml-5 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-accent/50 to-highlight/50">
-                    {experience.map((exp, index) => (
-                        <AnimatedItem key={exp.id} delay={index * 150}>
-                            <div className="relative pl-10">
-                                 <div className="absolute left-5 top-1 h-4 w-4 rounded-full bg-highlight border-4 border-base-100"></div>
-                                <div className="bg-secondary/60 backdrop-blur-md border border-secondary/30 shadow-lg p-6 rounded-xl">
-                                    <h3 className="text-2xl font-bold text-text-primary">{exp.role}</h3>
-                                    <p className="text-lg text-accent mb-1">{exp.organization}</p>
-                                    <p className="text-sm text-text-secondary mb-3">{exp.startDate} - {exp.endDate}</p>
-                                    <p className="text-text-secondary">{exp.description}</p>
-                                </div>
-                            </div>
-                        </AnimatedItem>
+        {/* Experience & Education - Timeline Style */}
+        <AnimatedSection id="experience" title="Journey" subtitle="Timeline" className="bg-secondary/30">
+            <div className="max-w-4xl mx-auto space-y-12">
+                <div className="space-y-8">
+                    <h3 className="text-2xl font-bold text-text-primary mb-8 border-b border-text-secondary/20 pb-4">Experience</h3>
+                    {experience.map((exp) => (
+                        <div key={exp.id} className="flex flex-col md:flex-row gap-4 md:gap-8">
+                             <div className="md:w-1/4">
+                                <span className="text-sm font-bold text-accent">{exp.startDate} — {exp.endDate}</span>
+                             </div>
+                             <div className="md:w-3/4">
+                                <h4 className="text-xl font-bold text-text-primary">{exp.role}</h4>
+                                <p className="text-text-secondary mb-2">{exp.organization}</p>
+                                <p className="text-text-secondary leading-relaxed">{exp.description}</p>
+                             </div>
+                        </div>
                     ))}
                 </div>
-            </AnimatedSection>
-        </div>
-        <div className="text-primary transform scale-y-[-1]">
-            <SVGWave color="text-base-100" />
-        </div>
-
-        <AnimatedSection id="education" title="Education">
-             <div className="space-y-8 relative before:absolute before:inset-0 before:ml-5 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-accent/50 to-highlight/50">
-                {education.map((edu, index) => (
-                    <AnimatedItem key={edu.id} delay={index * 150}>
-                        <div className="relative pl-10">
-                            <div className="absolute left-5 top-1 h-4 w-4 rounded-full bg-accent border-4 border-primary"></div>
-                            <div className="bg-secondary/60 backdrop-blur-md border border-secondary/30 shadow-lg p-6 rounded-xl">
-                                <h3 className="text-2xl font-bold text-text-primary">{edu.degree}</h3>
-                                <p className="text-lg text-accent mb-1">{edu.institution}</p>
-                                <p className="text-sm text-text-secondary mb-3">{edu.period}</p>
-                                <p className="text-text-secondary">{edu.details}</p>
-                            </div>
+                 <div className="space-y-8">
+                    <h3 className="text-2xl font-bold text-text-primary mb-8 border-b border-text-secondary/20 pb-4">Education</h3>
+                    {education.map((edu) => (
+                        <div key={edu.id} className="flex flex-col md:flex-row gap-4 md:gap-8">
+                             <div className="md:w-1/4">
+                                <span className="text-sm font-bold text-accent">{edu.period}</span>
+                             </div>
+                             <div className="md:w-3/4">
+                                <h4 className="text-xl font-bold text-text-primary">{edu.degree}</h4>
+                                <p className="text-text-secondary mb-2">{edu.institution}</p>
+                                <p className="text-text-secondary text-sm">{edu.details}</p>
+                             </div>
                         </div>
-                    </AnimatedItem>
-                ))}
+                    ))}
+                </div>
             </div>
         </AnimatedSection>
+        
+        {/* Memories Gallery */}
+        {memories && memories.length > 0 && (
+             <AnimatedSection id="memories" title="Life & Moments" subtitle="Gallery">
+                <MemoriesSection memories={memories} />
+             </AnimatedSection>
+        )}
 
+        {/* Notes & Resources */}
         {notes && notes.length > 0 && (
-            <>
-                <SVGWave color="text-cork-board" />
-                <div className='bg-cork-board'>
-                    <AnimatedSection id="notes" title="Notes & Resources">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                            {notes.map((note, index) => (
-                                <AnimatedItem key={note.id} delay={index * 150}>
-                                    <div className="relative bg-secondary shadow-lg rounded-md p-6 flex flex-col h-full group transition-transform duration-300 ease-in-out hover:scale-105 hover:-rotate-3">
-                                        <div className="absolute top-4 left-1/2 -translate-x-1/2 w-4 h-4 bg-red-400 rounded-full shadow-md border-2 border-white/70">
-                                            <div className="absolute inset-0.5 bg-red-500 rounded-full"></div>
-                                        </div>
-                                        
-                                        <div className="flex-grow pt-6">
-                                            <div className="flex items-start space-x-4 mb-4">
-                                                <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-accent/10 text-accent flex items-center justify-center">
-                                                    <FileIcon mimeType={note.fileType} />
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                     <h3 className="text-xl font-bold text-text-primary mb-1 truncate" title={note.title}>{note.title}</h3>
-                                                     <p className="text-text-secondary text-xs truncate" title={note.fileName}>{note.fileName}</p>
-                                                </div>
-                                            </div>
-                                            <p className="text-text-secondary text-sm mb-4 leading-relaxed">{note.description}</p>
-                                        </div>
-                                        <div className="mt-auto text-right">
-                                            <a 
-                                                href="#" 
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    handleDownload(note);
-                                                }}
-                                                className="inline-flex items-center gap-2 bg-highlight text-white font-bold py-2 px-4 rounded-md hover:opacity-90 transition-all self-start group-hover:bg-accent group-hover:pl-3 group-hover:pr-5"
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:translate-x-[-2px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                                                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                                </svg>
-                                                <span>Download</span>
-                                            </a>
-                                        </div>
-                                    </div>
-                                </AnimatedItem>
-                            ))}
+             <AnimatedSection id="notes" title="Resources" subtitle="Downloads" className="bg-secondary/30">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {notes.map((note) => (
+                        <div key={note.id} className="bg-primary p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow border border-secondary">
+                             <div className="flex items-center justify-between mb-4">
+                                <div className="w-10 h-10 bg-accent/10 text-accent rounded-lg flex items-center justify-center">
+                                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                </div>
+                                <button onClick={() => handleDownload(note)} className="text-sm font-bold text-accent hover:underline">Download</button>
+                             </div>
+                             <h3 className="font-bold text-lg mb-1">{note.title}</h3>
+                             <p className="text-sm text-text-secondary">{note.description}</p>
                         </div>
-                    </AnimatedSection>
+                    ))}
                 </div>
-                <div className="text-primary transform scale-y-[-1]">
-                    <SVGWave color="text-cork-board" />
-                </div>
-            </>
+             </AnimatedSection>
         )}
 
         {profile.promoVideo && (
-            <AnimatedSection id="promo" title="Promotional Video">
-                <div className="aspect-w-16 aspect-h-9 max-w-4xl mx-auto">
+            <AnimatedSection id="promo" title="Showreel">
+                <div className="aspect-w-16 aspect-h-9 max-w-5xl mx-auto rounded-2xl overflow-hidden shadow-2xl">
                     {profile.promoVideo.startsWith('data:video') ? (
-                         <video controls src={profile.promoVideo} className="rounded-lg shadow-2xl w-full h-full object-cover"></video>
+                         <video controls src={profile.promoVideo} className="w-full h-full object-cover"></video>
                     ) : (
-                        <iframe
-                            src={profile.promoVideo.replace("watch?v=", "embed/")}
-                            frameBorder="0"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                            className="rounded-lg shadow-md w-full h-full"
-                            title="Promotional Video"
-                        ></iframe>
+                        <iframe src={profile.promoVideo.replace("watch?v=", "embed/")} className="w-full h-full" title="Promo"></iframe>
                     )}
                 </div>
             </AnimatedSection>
         )}
 
       </main>
+      
       <GuestbookWidget />
-      <footer id="contact" className="p-8 bg-base-100/70 backdrop-blur-md border-t border-text-secondary/10">
-            <div className="container mx-auto">
-                <ContactForm />
-                 <div className="my-8">
-                    <SocialLinks links={profile.socialLinks} center={true}/>
+      
+      <footer id="contact" className="bg-primary py-16 border-t border-secondary">
+            <div className="container mx-auto px-6">
+                <div className="flex flex-col items-center">
+                    <SectionHeading title="Let's Connect" subtitle="Contact" />
+                    <ContactForm />
+                    <div className="mt-12 mb-8">
+                        <SocialLinks links={profile.socialLinks} center={true}/>
+                    </div>
+                    <p className="text-text-secondary text-sm">
+                        &copy; {new Date().getFullYear()} {profile.name}. 
+                        <span className="mx-2">•</span>
+                        <Link to="/admin" className="hover:text-highlight transition-colors">Admin Login</Link>
+                    </p>
                 </div>
-                <p className="text-text-secondary text-center text-sm">
-                    &copy; {new Date().getFullYear()} {profile.name}. All Rights Reserved.
-                    <br />
-                    <Link to="/admin" className="hover:text-accent">Admin Panel</Link>
-                </p>
             </div>
       </footer>
+
       {selectedProject && <ProjectDetailModal project={selectedProject} onClose={() => setSelectedProject(null)} />}
       {isProfileModalOpen && <UserProfileModal onClose={() => setIsProfileModalOpen(false)} />}
       <ProTipWidget />

@@ -6,60 +6,65 @@ import { getPortfolio, savePortfolio } from '../services/api';
 const defaultData: PortfolioData = {
   profile: {
     name: 'Your Name',
-    title: 'Electronics & Communication Engineer',
-    about: 'Innovative and detail-oriented Electronics and Communication Engineer with a passion for developing and implementing cutting-edge technological solutions. A recent graduate from Government Engineering College, Aurangabad, with hands-on experience in various projects and a proven ability to lead and coordinate. Seeking to leverage technical skills and leadership experience to contribute to a challenging engineering role.',
+    title: 'Machine Learning & Electronics Engineer',
+    about: 'Bridging the gap between hardware and artificial intelligence. I specialize in deploying robust Machine Learning models onto embedded systems. With a strong foundation in both electronics and data science, I create intelligent solutions that interact with the real world.',
     profilePicture: 'https://picsum.photos/400/400',
-    promoVideo: 'https://www.youtube.com/watch?v=QdBZY2fkU-0', // Placeholder video
+    promoVideo: '', 
     socialLinks: [
       { id: 'social1', platform: 'GitHub', url: '#' },
       { id: 'social2', platform: 'LinkedIn', url: '#' },
     ]
   },
   education: [
-    { id: 'edu1', degree: 'B.E. in Electronics and Communication', institution: 'Government Engineering College, Aurangabad', period: '2020 - 2024', details: 'Graduated with a focus on embedded systems and wireless communication.' },
-    { id: 'edu2', degree: 'Diploma in Electronics Engineering', institution: 'Local Polytechnic Institute', period: '2017 - 2020', details: 'Completed a comprehensive diploma program covering core electronics principles.' },
-    { id: 'edu3', degree: 'Matriculation (SSC)', institution: 'City High School', period: '2017', details: 'Completed secondary school with a focus on science and mathematics.' },
+    { id: 'edu1', degree: 'B.E. in Electronics and Communication', institution: 'Government Engineering College, Aurangabad', period: '2020 - 2024', details: 'Specialized in Signal Processing and AI applications.' },
   ],
   skills: [
-    { id: 'skill1', name: 'Embedded Systems (C/C++)', level: 90 },
-    { id: 'skill2', name: 'PCB Design (Eagle, KiCad)', level: 85 },
-    { id: 'skill3', name: 'React & TypeScript', level: 75 },
-    { id: 'skill4', name: 'Python for Data Analysis', level: 80 },
-    { id: 'skill5', name: 'Wireless Communication Protocols', level: 88 },
+    // --- 10 Major Machine Learning Algorithms ---
+    { id: 'ml1', name: 'Linear Regression', level: 95 },
+    { id: 'ml2', name: 'Logistic Regression', level: 92 },
+    { id: 'ml3', name: 'Decision Trees', level: 88 },
+    { id: 'ml4', name: 'Random Forest', level: 90 },
+    { id: 'ml5', name: 'Support Vector Machines (SVM)', level: 85 },
+    { id: 'ml6', name: 'K-Means Clustering', level: 88 },
+    { id: 'ml7', name: 'k-Nearest Neighbors (k-NN)', level: 90 },
+    { id: 'ml8', name: 'Naive Bayes', level: 85 },
+    { id: 'ml9', name: 'PCA (Dimensionality Reduction)', level: 82 },
+    { id: 'ml10', name: 'Gradient Boosting (XGBoost)', level: 88 },
+    // --- Core Tech ---
+    { id: 'tech1', name: 'Python (TensorFlow/PyTorch)', level: 90 },
+    { id: 'tech2', name: 'Embedded C++', level: 85 },
   ],
   projects: [
     { 
+      id: 'proj-ml-1', 
+      title: 'Predictive Maintenance System', 
+      description: 'Using Random Forest and SVM to predict machinery failure before it happens via IoT sensors.', 
+      longDescription: 'This project demonstrates the application of supervised learning algorithms (Random Forest and SVM) to analyze vibration and temperature data streaming from industrial motors. By identifying anomalies in real-time using an ESP32 edge device, the system alerts maintenance teams before catastrophic failure occurs. The model was trained on a dataset of 50,000 sensor readings and achieved 94% accuracy.',
+      keyLearning: 'Implementing heavy ML models on constrained edge devices required using TFLite Micro and aggressive dimensionality reduction (PCA).',
+      technologies: ['Python', 'Scikit-Learn', 'IoT', 'Random Forest', 'SVM'], 
+      link: '#',
+      repoLink: '#',
+      imageGallery: ['https://picsum.photos/seed/ml1/800/600'],
+      videoUrl: ''
+    },
+    { 
       id: 'proj1', 
-      title: 'IoT Based Smart Home Automation', 
-      description: 'Developed a system to control home appliances remotely using a web interface and microcontroller.', 
-      longDescription: 'This project is a comprehensive smart home solution that leverages the ESP32 microcontroller for hardware control and an MQTT broker for secure, real-time communication. The frontend, built with React, provides a user-friendly dashboard to monitor and control various home appliances like lights, fans, and security cameras. The Node.js backend manages user authentication, device state, and communication with the MQTT broker. A key challenge was ensuring low latency and robust security for the entire system.',
-      keyLearning: 'The biggest challenge was ensuring low-latency communication between the web interface and the ESP32. Implementing MQTT with optimized Quality of Service (QoS) levels was the key to achieving a responsive user experience.',
+      title: 'IoT Smart Home', 
+      description: 'A classic robust home automation system using MQTT and React.', 
+      longDescription: 'A full-stack IoT solution controlling home appliances. Features a React dashboard and an Express/Node.js backend communicating via MQTT to ESP32 microcontrollers.',
+      keyLearning: 'Mastered the pub/sub architecture and real-time state management.',
       technologies: ['ESP32', 'MQTT', 'React', 'Node.js'], 
       link: '#',
       repoLink: '#',
-      imageGallery: ['https://picsum.photos/seed/project1a/800/600', 'https://picsum.photos/seed/project1b/800/600', 'https://picsum.photos/seed/project1c/800/600'],
-      videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
-    },
-    { 
-      id: 'proj2', 
-      title: 'Automated Attendance System', 
-      description: 'Created an RFID-based attendance system to automate the process of recording student attendance, reducing manual errors.', 
-      longDescription: 'The Automated Attendance System utilizes an Arduino microcontroller paired with an RFID reader to streamline the attendance process. Each student is issued an RFID card, and upon scanning, their attendance is logged into a SQL database. This system eliminates the need for manual roll calls, significantly reducing administrative overhead and human error. The project involved hardware interfacing with C++, database design, and creating a simple interface for administrators to view and export attendance records.',
-      keyLearning: 'A key takeaway was the importance of handling RFID card collisions and ensuring data integrity. I implemented a robust error-checking mechanism in the Arduino code to prevent duplicate or missed attendance logs.',
-      technologies: ['Arduino', 'RFID', 'C++', 'SQL'], 
-      link: '#',
-      repoLink: '#',
-      imageGallery: ['https://picsum.photos/seed/project2a/800/600', 'https://picsum.photos/seed/project2b/800/600'],
+      imageGallery: ['https://picsum.photos/seed/project1a/800/600'],
       videoUrl: ''
     },
   ],
   experience: [
-    { id: 'exp1', role: 'Start-up Cell Coordinator', organization: 'District Innovation Council', startDate: '2023', endDate: 'Present', description: 'Coordinated with various institutions to foster a start-up ecosystem. Organized workshops, mentorship programs, and networking events for aspiring entrepreneurs in the district.' },
+    { id: 'exp1', role: 'ML Intern', organization: 'Tech Innovations Labs', startDate: '2023', endDate: 'Present', description: 'Developing computer vision models for automated quality control.' },
   ],
   memories: [
-    { id: 'mem1', image: 'https://picsum.photos/seed/memory1/1200/800', caption: 'A memorable team outing.' },
-    { id: 'mem2', image: 'https://picsum.photos/seed/memory2/1200/800', caption: 'Receiving an award for a project.' },
-    { id: 'mem3', image: 'https://picsum.photos/seed/memory3/1200/800', caption: 'Workshop on modern technologies.' },
+    { id: 'mem1', image: 'https://picsum.photos/seed/memory1/1200/800', caption: 'Hackathon Win 2023' },
   ],
   notes: [],
 };
@@ -82,30 +87,18 @@ export const PortfolioProvider: React.FC<{ children: ReactNode }> = ({ children 
       try {
         const savedData = await getPortfolio();
         if (savedData && Object.keys(savedData).length > 0) {
-          
-          // --- Permanent & Simplified Data-Safety Fix ---
-          // The previous complex logic for merging the 'profile' section was the source of the data-loss bugs.
-          // This new, simplified logic treats every section equally. If a section exists in the user's
-          // saved data, it is used in its entirety. This is the safest approach and guarantees
-          // that default data can never overwrite customized sections.
-          const finalData = { ...defaultData }; // Start with a fresh copy of the defaults.
-          
+          const finalData = { ...defaultData };
           for (const key of Object.keys(finalData) as Array<keyof PortfolioData>) {
-              // If the user has data for this top-level key (e.g., 'profile', 'skills'),
-              // use their data completely, overwriting the default for that section.
               if (savedData[key] !== undefined) {
                   finalData[key] = savedData[key] as any;
               }
           }
           setPortfolioData(finalData);
-
         } else {
-           // If no data is saved, or it's empty, use the defaults.
            setPortfolioData(defaultData);
         }
       } catch (error) {
         console.error('Error loading data from API:', error);
-        // Fallback to default data is handled by initial state
         setPortfolioData(defaultData);
       }
     };
@@ -115,7 +108,6 @@ export const PortfolioProvider: React.FC<{ children: ReactNode }> = ({ children 
   const saveData = async (dataToSave: PortfolioData) => {
     try {
       await savePortfolio(dataToSave);
-      // No alert here, UI feedback will be handled in the AdminView
     } catch (error) {
       console.error('Error saving data via API:', error);
       alert('Failed to save data.');
@@ -129,7 +121,6 @@ export const PortfolioProvider: React.FC<{ children: ReactNode }> = ({ children 
   );
 };
 
-// --- Custom Hook ---
 export const usePortfolio = (): PortfolioContextType => {
   const context = useContext(PortfolioContext);
   if (!context) {

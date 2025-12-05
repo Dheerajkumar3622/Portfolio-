@@ -5,11 +5,20 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
-import { fileURLToPath } from 'url';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 
 dotenv.config();
 
 const app = express();
+const httpServer = createServer(app); // Wrap Express in HTTP server for Socket.io
+const io = new Server(httpServer, {
+  cors: {
+    origin: "*", // Allow connections from any origin (simplify dev/prod)
+    methods: ["GET", "POST"]
+  }
+});
+
 const PORT = process.env.PORT || 5000;
 
 // Middleware
@@ -26,7 +35,7 @@ let dbConnectionError = null;
 
 const connectDB = async () => {
     if (!MONGODB_URI) {
-        const msg = "⚠️  MONGODB_URI is missing. App running in OFFLINE mode (serving frontend, but data won't persist to DB).";
+        const msg = "⚠️  MONGODB_URI is missing. App running in OFFLINE mode.";
         console.warn(msg);
         dbConnectionError = "Environment variable MONGODB_URI is missing.";
         return;
@@ -53,14 +62,16 @@ const userSchema = new mongoose.Schema({
 });
 const UserModel = mongoose.model('User', userSchema);
 
-const guestbookSchema = new mongoose.Schema({
+// Updated Chat Schema for Real-Time
+const chatSchema = new mongoose.Schema({
   id: String,
-  userId: String,
+  senderId: String,
   message: String,
   timestamp: Number,
-  reactions: { type: Map, of: Number }
+  type: { type: String, default: 'public' }, // 'public' or 'private'
+  receiverId: String // For private messages
 });
-const GuestbookModel = mongoose.model('Guestbook', guestbookSchema);
+const ChatModel = mongoose.model('Chat', chatSchema);
 
 const leadSchema = new mongoose.Schema({
   id: String,
@@ -86,6 +97,48 @@ const portfolioSchema = new mongoose.Schema({
 });
 const PortfolioModel = mongoose.model('Portfolio', portfolioSchema);
 
+// --- Real-Time Chat Logic (Socket.io) ---
+io.on('connection', (socket) => {
+  console.log('User connected:', socket.id);
+
+  socket.on('join_chat', (userId) => {
+    socket.join('public'); // Everyone joins public channel
+    socket.join(userId);   // Join a private channel named after their ID
+    io.to('public').emit('user_status', { userId, status: 'online' });
+  });
+
+  socket.on('send_message', async (data) => {
+    // Save to DB
+    if (isDbConnected) {
+      try {
+        const newMsg = new ChatModel({
+          id: crypto.randomUUID(),
+          senderId: data.senderId,
+          message: data.message,
+          timestamp: Date.now(),
+          type: 'public'
+        });
+        await newMsg.save();
+        // Broadcast to everyone in public
+        io.to('public').emit('receive_message', newMsg);
+      } catch (e) {
+        console.error("Error saving chat:", e);
+      }
+    } else {
+        // Fallback for offline mode (just echo back)
+        io.to('public').emit('receive_message', { ...data, timestamp: Date.now(), id: crypto.randomUUID() });
+    }
+  });
+
+  socket.on('typing', (data) => {
+    socket.broadcast.to('public').emit('user_typing', data.userId);
+  });
+
+  socket.on('disconnect', () => {
+    console.log('User disconnected');
+  });
+});
+
 
 // --- Helper: Check DB Status ---
 const dbCheck = (res) => {
@@ -101,7 +154,6 @@ const dbCheck = (res) => {
 
 // --- API Routes ---
 
-// Health Check
 app.get('/api/health', (req, res) => {
     res.json({ 
         status: 'ok', 
@@ -110,12 +162,31 @@ app.get('/api/health', (req, res) => {
     });
 });
 
-// Portfolio
+// Portfolio - Splitting Logic
 app.get('/api/portfolio', async (req, res) => {
   if (!dbCheck(res)) return;
   try {
-    const portfolio = await PortfolioModel.findOne({ identifier: 'main' });
-    res.json(portfolio ? portfolio.data : {});
+    const sections = ['profile', 'education', 'skills', 'projects', 'experience', 'memories', 'notes'];
+    const results = await Promise.all(
+        sections.map(sec => PortfolioModel.findOne({ identifier: `main_${sec}` }))
+    );
+    
+    const fullPortfolio = {};
+    let foundAny = false;
+
+    sections.forEach((sec, index) => {
+        if (results[index]) {
+            fullPortfolio[sec] = results[index].data;
+            foundAny = true;
+        }
+    });
+    
+    if (!foundAny) {
+         const legacy = await PortfolioModel.findOne({ identifier: 'main' });
+         if (legacy) return res.json(legacy.data);
+    }
+
+    res.json(fullPortfolio);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -124,11 +195,20 @@ app.get('/api/portfolio', async (req, res) => {
 app.post('/api/portfolio', async (req, res) => {
   if (!dbCheck(res)) return;
   try {
-    await PortfolioModel.findOneAndUpdate(
-      { identifier: 'main' },
-      { data: req.body },
-      { upsert: true, new: true }
-    );
+    const fullData = req.body;
+    const sections = ['profile', 'education', 'skills', 'projects', 'experience', 'memories', 'notes'];
+    
+    const operations = sections.map(section => {
+        if (fullData[section]) {
+            return PortfolioModel.findOneAndUpdate(
+                { identifier: `main_${section}` },
+                { data: fullData[section] },
+                { upsert: true, new: true }
+            );
+        }
+    });
+    
+    await Promise.all(operations);
     res.json({ success: true });
   } catch (error) {
     console.error("Save Error:", error);
@@ -136,7 +216,7 @@ app.post('/api/portfolio', async (req, res) => {
   }
 });
 
-// Auth
+// Auth Routes
 app.post('/api/auth/signup', async (req, res) => {
   if (!dbCheck(res)) return;
   try {
@@ -161,99 +241,19 @@ app.get('/api/auth/user/:id', async (req, res) => {
   }
 });
 
-app.put('/api/auth/user', async (req, res) => {
+// Chat History API (Load previous messages)
+app.get('/api/chat/history', async (req, res) => {
   if (!dbCheck(res)) return;
   try {
-    const { id, hashedPassword } = req.body;
-    await UserModel.findOneAndUpdate({ id }, { hashedPassword });
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.get('/api/auth/users', async (req, res) => {
-  if (!dbCheck(res)) return;
-  try {
-    const users = await UserModel.find({}, { hashedPassword: 0 });
-    res.json(users);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.delete('/api/auth/user/:id', async (req, res) => {
-  if (!dbCheck(res)) return;
-  try {
-    await UserModel.findOneAndDelete({ id: req.params.id });
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Guestbook (Chat)
-app.get('/api/guestbook', async (req, res) => {
-  if (!dbCheck(res)) return;
-  try {
-    const limit = parseInt(req.query.limit) || 50;
-    const offset = parseInt(req.query.offset) || 0;
-    const entries = await GuestbookModel.find().sort({ timestamp: -1 }).skip(offset).limit(limit);
-    res.json(entries);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.get('/api/guestbook/newer', async (req, res) => {
-  if (!dbCheck(res)) return;
-  try {
-    const timestamp = parseInt(req.query.timestamp) || 0;
-    const entries = await GuestbookModel.find({ timestamp: { $gt: timestamp } }).sort({ timestamp: -1 });
-    res.json(entries);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.post('/api/guestbook', async (req, res) => {
-  if (!dbCheck(res)) return;
-  try {
-    const entry = req.body;
-    const newEntry = new GuestbookModel({
-      ...entry,
-      id: entry.id || crypto.randomUUID(),
-      timestamp: entry.timestamp || Date.now(),
-      reactions: entry.reactions || {}
-    });
-    await newEntry.save();
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.delete('/api/guestbook/:id', async (req, res) => {
-  if (!dbCheck(res)) return;
-  try {
-    await GuestbookModel.findOneAndDelete({ id: req.params.id });
-    res.json({ success: true });
+    const limit = 50;
+    const messages = await ChatModel.find({ type: 'public' }).sort({ timestamp: -1 }).limit(limit);
+    res.json(messages.reverse()); // Oldest first for chat flow
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
 // Leads & Reports
-app.get('/api/leads', async (req, res) => {
-  if (!dbCheck(res)) return;
-  try {
-    const leads = await LeadModel.find().sort({ timestamp: -1 });
-    res.json(leads);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
 app.post('/api/leads', async (req, res) => {
   if (!dbCheck(res)) return;
   try {
@@ -265,55 +265,26 @@ app.post('/api/leads', async (req, res) => {
   }
 });
 
-app.get('/api/reports', async (req, res) => {
-  if (!dbCheck(res)) return;
-  try {
-    const reports = await ReportModel.find().sort({ timestamp: -1 });
-    res.json(reports);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+app.get('/api/leads', async (req, res) => {
+    if (!dbCheck(res)) return;
+    try {
+        const leads = await LeadModel.find().sort({ timestamp: -1 });
+        res.json(leads);
+    } catch(e) { res.status(500).json({error: e.message}) }
 });
-
-app.post('/api/reports', async (req, res) => {
-  if (!dbCheck(res)) return;
-  try {
-    const newReport = new ReportModel({ ...req.body, id: crypto.randomUUID(), timestamp: Date.now() });
-    await newReport.save();
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.delete('/api/reports/:id', async (req, res) => {
-  if (!dbCheck(res)) return;
-  try {
-    await ReportModel.findOneAndDelete({ id: req.params.id });
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
 
 // --- Static Files ---
 const distPath = path.join(process.cwd(), 'dist');
 
-// Serve static assets
 if (fs.existsSync(distPath)) {
   console.log(`📂 Serving static files from: ${distPath}`);
   app.use(express.static(distPath));
-} else {
-  console.warn(`⚠️  Dist folder not found. Please run 'npm run build'.`);
 }
 
-// Catch-all for SPA
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api')) {
     return res.status(404).json({ error: 'API endpoint not found' });
   }
-  
   const indexPath = path.join(distPath, 'index.html');
   if (fs.existsSync(indexPath)) {
       res.sendFile(indexPath);
@@ -322,6 +293,7 @@ app.get('*', (req, res) => {
   }
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+// Use httpServer.listen instead of app.listen for Socket.io
+httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });

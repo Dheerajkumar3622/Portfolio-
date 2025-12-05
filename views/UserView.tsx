@@ -1,558 +1,159 @@
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useEffect, useRef } from 'react';
+import { ReactLenis } from '@studio-freight/react-lenis';
 import { usePortfolio } from '../context/PortfolioContext';
-import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
-import GuestbookWidget from '../components/GuestbookWidget';
-import ProjectDetailModal from '../components/ProjectDetailModal';
-import BackToTopButton from '../components/BackToTopButton';
-import SkillBar from '../components/SkillBar';
-import { Link } from 'react-router-dom';
-import { postLead } from '../services/api';
-import { semanticSearchProjects } from '../services/geminiService';
-import type { Project, SocialLink, Note, Skill } from '../types';
-import { useOnScreen } from '../hooks/useOnScreen';
+import { motion, useScroll, useTransform } from 'framer-motion';
+import ChatWidget from '../components/ChatWidget';
+import MLSlider from '../components/MLSlider';
+import SmartImage from '../components/SmartImage';
+import VoiceControl from '../components/VoiceControl';
 import SocialLinks from '../components/SocialLinks';
-import MemoriesSection from '../components/MemoriesSection';
-import Typewriter from '../components/Typewriter';
-import ProTipWidget from '../components/ProTipWidget';
-import AuthModal from '../components/AuthModal';
-import UserProfileModal from '../components/UserProfileModal';
-import VoiceControl from '../components/VoiceControl'; // Feature 1: Voice
-import SmartImage from '../components/SmartImage';     // Feature 10: Self-Healing UI
+import { Link } from 'react-router-dom';
 
-
-const Header: React.FC<{ name: string; title: string; activeSection: string; onProfileClick: () => void; onLoginClick: () => void; }> = ({ name, title, activeSection, onProfileClick, onLoginClick }) => {
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const { currentUser, logout } = useAuth();
-    const { isDarkMode, toggleTheme } = useTheme();
+// --- Parallax Card Component ---
+const ProjectCard: React.FC<{ project: any; index: number; total: number }> = ({ project, index, total }) => {
+    // Each card is sticky. We increase top offset per index to create stack effect.
+    const topOffset = 100 + index * 40; 
     
-    const navLinks = [
-        { href: '#about', label: 'About', id: 'about' },
-        { href: '#skills', label: 'Expertise', id: 'skills' },
-        { href: '#projects', label: 'Work', id: 'projects' },
-        { href: '#experience', label: 'Experience', id: 'experience' },
-        { href: '#notes', label: 'Resources', id: 'notes' },
-    ];
-
-    const AuthControls: React.FC<{ isMobile?: boolean }> = ({ isMobile }) => {
-        const baseClasses = "transition-all font-medium text-sm";
-        
-        if (currentUser) {
-            return (
-                <div className={`flex ${isMobile ? 'flex-col items-center space-y-4' : 'items-center space-x-4'}`}>
-                    <span className="text-text-secondary text-xs uppercase tracking-wider">ID: {currentUser.id}</span>
-                    <button onClick={onProfileClick} className="text-text-primary hover:text-accent">Profile</button>
-                    <button onClick={logout} className="text-text-secondary hover:text-red-500">Logout</button>
-                </div>
-            );
-        }
-        return (
-             <button onClick={onLoginClick} className={`${baseClasses} bg-highlight text-primary px-5 py-2 rounded-full hover:opacity-90 shadow-md`}>
-                Sign In
-            </button>
-        );
-    };
-
     return (
-        <header className="sticky top-0 z-30 w-full bg-primary/80 backdrop-blur-md border-b border-secondary/50">
-            <div className="container mx-auto px-6 py-4 flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-highlight rounded-lg"></div>
-                    <div>
-                        <h1 className="text-lg font-bold text-highlight tracking-tight leading-none">
-                          {name}
-                        </h1>
-                    </div>
-                </div>
-                
-                {/* Desktop Nav */}
-                <nav className="hidden md:flex space-x-8 text-sm font-medium text-text-secondary items-center">
-                    {navLinks.map(link => (
-                         <a key={link.href} href={link.href} className={`transition-colors hover:text-highlight ${activeSection === link.id ? 'text-highlight font-semibold' : ''}`}>
-                            {link.label}
-                         </a>
-                    ))}
-                    <a href="#contact" className="hover:text-highlight">Contact</a>
-                    
-                    <button 
-                        onClick={toggleTheme} 
-                        className="p-2 rounded-full hover:bg-secondary transition-colors text-text-primary"
-                        aria-label="Toggle Dark Mode"
-                    >
-                        {isDarkMode ? (
-                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                            </svg>
-                        ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                            </svg>
-                        )}
-                    </button>
-                    <AuthControls />
-                </nav>
-
-                {/* Mobile Menu Button */}
-                <div className="flex items-center gap-4 md:hidden">
-                    <button onClick={toggleTheme} className="text-text-primary">
-                         {isDarkMode ? '☀️' : '🌙'}
-                    </button>
-                    <button className="z-50" onClick={() => setIsMenuOpen(!isMenuOpen)} aria-label="Toggle menu">
-                        <div className="space-y-1.5">
-                            <span className={`block w-6 h-0.5 bg-text-primary transition-all ${isMenuOpen ? 'rotate-45 translate-y-2' : ''}`}></span>
-                            <span className={`block w-6 h-0.5 bg-text-primary transition-all ${isMenuOpen ? 'opacity-0' : ''}`}></span>
-                            <span className={`block w-6 h-0.5 bg-text-primary transition-all ${isMenuOpen ? '-rotate-45 -translate-y-2' : ''}`}></span>
-                        </div>
-                    </button>
-                </div>
-
-                {/* Mobile Nav */}
-                <div className={`fixed inset-0 bg-primary z-40 flex flex-col items-center justify-center space-y-8 transition-transform duration-300 ${isMenuOpen ? 'translate-x-0' : 'translate-x-full'} md:hidden`}>
-                     {navLinks.map(link => (
-                          <a key={link.href} href={link.href} className="text-2xl font-bold text-text-primary" onClick={() => setIsMenuOpen(false)}>{link.label}</a>
-                     ))}
-                     <AuthControls isMobile={true} />
-                </div>
-            </div>
-        </header>
-    );
-};
-
-
-const Hero: React.FC<{ profile: any }> = ({ profile }) => (
-    <section id="about" className="container mx-auto px-6 py-24 md:py-32 flex flex-col md:flex-row items-center gap-12">
-        <div className="flex-1 text-center md:text-left animate-fade-in-up">
-            <span className="inline-block py-1 px-3 rounded-full bg-secondary text-accent text-xs font-bold tracking-widest uppercase mb-6">
-                Portfolio
-            </span>
-            <h2 className="text-5xl md:text-7xl font-bold mb-6 text-text-primary tracking-tight leading-tight">
-                {profile.name}
-            </h2>
-            <h3 className="text-xl md:text-2xl text-text-secondary mb-8 font-light h-8">
-                <Typewriter text={profile.title} speed={50} />
-            </h3>
-            <p className="text-text-secondary text-lg leading-relaxed max-w-xl mb-8 mx-auto md:mx-0">
-                {profile.about}
-            </p>
-            <div className="flex justify-center md:justify-start gap-4">
-                <a href="#projects" className="bg-highlight text-primary px-8 py-3 rounded-full font-medium hover:opacity-90 transition-opacity">View Work</a>
-                <a href="#contact" className="border border-text-secondary/30 text-text-primary px-8 py-3 rounded-full font-medium hover:bg-secondary transition-colors">Contact</a>
-            </div>
-            <div className="mt-8 flex justify-center md:justify-start">
-                <SocialLinks links={profile.socialLinks} />
-            </div>
-        </div>
-        <div className="flex-1 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-             <div className="relative w-64 h-64 md:w-96 md:h-96 mx-auto">
-                <div className="absolute inset-0 bg-gradient-to-tr from-accent to-highlight rounded-full opacity-10 blur-2xl"></div>
-                <SmartImage 
-                    src={profile.profilePicture || "https://picsum.photos/400/400"} 
-                    alt={profile.name} 
-                    className="relative w-full h-full rounded-2xl shadow-premium rotate-3 hover:rotate-0 transition-transform duration-500"
-                />
-             </div>
-        </div>
-    </section>
-);
-
-const SectionHeading: React.FC<{ title: string; subtitle?: string }> = ({ title, subtitle }) => (
-    <div className="text-center mb-16">
-        {subtitle && <span className="text-accent text-xs font-bold tracking-widest uppercase mb-2 block">{subtitle}</span>}
-        <h2 className="text-3xl md:text-4xl font-bold text-text-primary tracking-tight">{title}</h2>
-        <div className="w-12 h-1 bg-accent mx-auto mt-4 rounded-full"></div>
-    </div>
-);
-
-const AnimatedSection: React.FC<{ id: string; title: string; subtitle?: string; className?: string; children: React.ReactNode }> = ({ id, title, subtitle, className, children }) => {
-    const ref = useRef<HTMLDivElement>(null);
-    const isVisible = useOnScreen(ref, { threshold: 0.1 });
-
-    return (
-        <section
-            ref={ref}
-            id={id}
-            className={`py-24 px-6 ${className || ''} transition-opacity duration-1000 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+        <motion.div 
+            className="sticky mb-20 w-full max-w-4xl mx-auto rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-[#0a0a0a]"
+            style={{ 
+                top: topOffset,
+                zIndex: index,
+                // Scale down slightly as it goes up (optional visual flair)
+            }}
+            initial={{ opacity: 0, y: 50 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
         >
-            <div className="container mx-auto">
-                <SectionHeading title={title} subtitle={subtitle} />
-                {children}
-            </div>
-        </section>
-    );
-};
-
-const ContactForm = () => {
-    const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
-    const [formData, setFormData] = useState({ name: '', email: '', message: '' });
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setStatus('submitting');
-        try {
-            await postLead(formData);
-            setStatus('success');
-            setFormData({ name: '', email: '', message: '' });
-        } catch {
-            setStatus('error');
-        }
-    };
-
-    return (
-        <div className="max-w-xl mx-auto bg-secondary p-8 rounded-2xl shadow-premium">
-             {status === 'success' ? (
-                <div className="text-center py-8">
-                    <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">✓</div>
-                    <h3 className="text-xl font-bold mb-2">Message Sent</h3>
-                    <p className="text-text-secondary">I'll get back to you soon.</p>
-                    <button onClick={() => setStatus('idle')} className="mt-4 text-accent font-medium">Send another</button>
+            <div className="relative h-[500px] flex flex-col md:flex-row">
+                <div className="md:w-1/2 h-64 md:h-full relative overflow-hidden">
+                    <SmartImage 
+                        src={project.imageGallery[0]} 
+                        alt={project.title} 
+                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
+                    />
                 </div>
-             ) : (
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                            <label className="text-xs font-bold uppercase text-text-secondary">Name</label>
-                            <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-primary border border-secondary rounded-lg p-3 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/50" />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-xs font-bold uppercase text-text-secondary">Email</label>
-                            <input required type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full bg-primary border border-secondary rounded-lg p-3 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/50" />
-                        </div>
+                <div className="md:w-1/2 p-8 flex flex-col justify-center bg-gray-900/50 backdrop-blur-sm">
+                    <h2 className="text-3xl font-bold text-white mb-4 font-mono">{project.title}</h2>
+                    <p className="text-gray-400 mb-6">{project.description}</p>
+                    <div className="flex flex-wrap gap-2 mb-6">
+                        {project.technologies.slice(0,4).map((t: string) => (
+                            <span key={t} className="px-3 py-1 border border-accent/30 text-accent rounded-full text-xs">{t}</span>
+                        ))}
                     </div>
-                    <div className="space-y-1">
-                        <label className="text-xs font-bold uppercase text-text-secondary">Message</label>
-                        <textarea required rows={4} value={formData.message} onChange={e => setFormData({...formData, message: e.target.value})} className="w-full bg-primary border border-secondary rounded-lg p-3 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/50"></textarea>
+                    <div className="flex gap-4">
+                         <button className="bg-white text-black px-6 py-2 rounded-full font-bold hover:bg-gray-200 transition">View Case Study</button>
                     </div>
-                    <button disabled={status === 'submitting'} type="submit" className="w-full bg-highlight text-primary font-bold py-3 rounded-lg hover:opacity-90 transition-opacity">
-                        {status === 'submitting' ? 'Sending...' : 'Send Message'}
-                    </button>
-                    {status === 'error' && <p className="text-red-500 text-sm text-center">Failed to send. Please try again.</p>}
-                </form>
-             )}
-        </div>
+                </div>
+            </div>
+        </motion.div>
     );
 };
+
 
 const UserView: React.FC = () => {
   const { portfolioData } = usePortfolio();
-  const { profile, skills, projects, experience, education, memories, notes } = portfolioData;
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [activeSection, setActiveSection] = useState('about');
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  
-  // Semantic Search State
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
-  const [filteredProjects, setFilteredProjects] = useState<Project[]>(projects);
-
-  // --- Feature 9: Dynamic Content Personalization ---
-  const [userInterests, setUserInterests] = useState<Record<string, number>>({});
-  
-  // Sort skills based on user interests. If user clicks "AI" projects, AI skills float to top.
-  const dynamicSkills = useMemo(() => {
-    if (Object.keys(userInterests).length === 0) return skills;
-    
-    return [...skills].sort((a, b) => {
-        const aScore = Object.keys(userInterests).reduce((score, interest) => {
-            return a.name.toLowerCase().includes(interest.toLowerCase()) ? score + userInterests[interest] : score;
-        }, 0);
-        const bScore = Object.keys(userInterests).reduce((score, interest) => {
-             return b.name.toLowerCase().includes(interest.toLowerCase()) ? score + userInterests[interest] : score;
-        }, 0);
-        
-        // Secondary sort by level if scores are equal
-        if (bScore === aScore) return b.level - a.level;
-        return bScore - aScore;
-    });
-  }, [skills, userInterests]);
-
-  const handleProjectClick = (project: Project) => {
-      setSelectedProject(project);
-      
-      // Track interests
-      const newInterests = { ...userInterests };
-      project.technologies.forEach(tech => {
-          newInterests[tech] = (newInterests[tech] || 0) + 1;
-      });
-      // Also check title keywords
-      if (project.title.toLowerCase().includes('ai') || project.title.toLowerCase().includes('intelligence')) {
-          newInterests['AI'] = (newInterests['AI'] || 0) + 2;
-      }
-      if (project.title.toLowerCase().includes('embedded') || project.title.toLowerCase().includes('hardware')) {
-          newInterests['Embedded'] = (newInterests['Embedded'] || 0) + 2;
-      }
-      setUserInterests(newInterests);
-  };
-  // --------------------------------------------------
-
-  useEffect(() => {
-      setFilteredProjects(projects);
-  }, [projects]);
-
-  const handleSearch = async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!searchQuery.trim()) {
-          setFilteredProjects(projects);
-          return;
-      }
-      setIsSearching(true);
-      try {
-          const matchingIds = await semanticSearchProjects(searchQuery, projects);
-          if (matchingIds.length > 0) {
-              setFilteredProjects(projects.filter(p => matchingIds.includes(p.id)));
-          } else {
-              setFilteredProjects([]);
-          }
-      } catch (err) {
-          console.error(err);
-      } finally {
-          setIsSearching(false);
-      }
-  };
-
-  useEffect(() => {
-    document.body.style.overflow = (selectedProject || isProfileModalOpen || isAuthModalOpen) ? 'hidden' : 'auto';
-    return () => { document.body.style.overflow = 'auto'; };
-  }, [selectedProject, isProfileModalOpen, isAuthModalOpen]);
-  
-  useEffect(() => {
-    const handleScroll = () => {
-        const sections = ['about', 'skills', 'projects', 'experience', 'notes', 'contact'];
-        const scrollPosition = window.scrollY + 200;
-        for (const id of sections) {
-            const element = document.getElementById(id);
-            if (element && scrollPosition >= element.offsetTop && scrollPosition < element.offsetTop + element.offsetHeight) {
-                setActiveSection(id);
-                break;
-            }
-        }
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  const handleVoiceNavigate = (sectionId: string) => {
-      const element = document.getElementById(sectionId);
-      if (element) {
-          element.scrollIntoView({ behavior: 'smooth' });
-      }
-  };
-  
-  const handleDownload = async (note: Note) => {
-    try {
-        const response = await fetch(note.fileData);
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', note.fileName);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-    } catch {
-        alert('Download failed.');
-    }
-  };
+  const { profile, projects, skills } = portfolioData;
 
   return (
-    <div className="bg-primary text-text-primary min-h-screen w-full overflow-x-hidden">
-      {isAuthModalOpen && <AuthModal onClose={() => setIsAuthModalOpen(false)} />}
-      <Header 
-        name={profile.name} 
-        title={profile.title} 
-        activeSection={activeSection} 
-        onProfileClick={() => setIsProfileModalOpen(true)}
-        onLoginClick={() => setIsAuthModalOpen(true)}
-      />
-      
-      <main className="w-full overflow-x-hidden">
-        <Hero profile={profile} />
+    <ReactLenis root>
+      <div className="bg-black text-white min-h-screen font-sans selection:bg-accent selection:text-white overflow-x-hidden">
         
-        {/* Skills Section - Dynamic & Personalized */}
-        <AnimatedSection id="skills" title="Technical Expertise" subtitle="Capabilities" className="bg-secondary/30">
-            {Object.keys(userInterests).length > 0 && (
-                <div className="text-center mb-6 animate-fade-in-up">
-                    <span className="bg-accent/10 text-accent text-xs font-bold px-3 py-1 rounded-full border border-accent/20">
-                        ⚡ Personalized based on your interests
-                    </span>
-                </div>
-            )}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {dynamicSkills.map(skill => (
-                    <SkillBar key={skill.id} name={skill.name} level={skill.level} />
-                ))}
+        {/* Hero Section */}
+        <section className="h-screen flex items-center justify-center relative overflow-hidden">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/20 via-black to-black"></div>
+            <div className="z-10 text-center px-4">
+                <motion.h1 
+                    initial={{ y: 100, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ duration: 1, ease: "easeOut" }}
+                    className="text-6xl md:text-9xl font-bold tracking-tighter mb-4"
+                >
+                    {profile.name}
+                </motion.h1>
+                <motion.p 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.5 }}
+                    className="text-xl md:text-2xl text-gray-400 font-light"
+                >
+                    {profile.title}
+                </motion.p>
             </div>
-        </AnimatedSection>
+        </section>
 
-        {/* Projects Section - AI Search & Smart Images */}
-        <AnimatedSection id="projects" title="Selected Works" subtitle="Portfolio">
-            {/* AI Search Bar */}
-            <div className="max-w-xl mx-auto mb-12">
-                <form onSubmit={handleSearch} className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg className="h-5 w-5 text-gray-400 group-focus-within:text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                        </svg>
-                    </div>
-                    <input 
-                        type="text" 
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="block w-full pl-10 pr-4 py-3 border border-secondary rounded-full bg-secondary/50 text-text-primary placeholder-text-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:bg-primary transition-all shadow-sm"
-                        placeholder="Ask AI to find projects (e.g., 'Show me embedded systems')..."
-                    />
-                    <button type="submit" disabled={isSearching} className="absolute right-2 top-1.5 bottom-1.5 bg-accent text-white px-4 rounded-full text-sm font-bold hover:bg-highlight transition-colors disabled:opacity-50">
-                        {isSearching ? 'Thinking...' : 'AI Search'}
-                    </button>
-                </form>
-                {searchQuery && (
-                    <div className="text-center mt-2 text-sm text-text-secondary">
-                        {filteredProjects.length === 0 ? "No matches found." : `Found ${filteredProjects.length} relevant projects.`}
-                        <button onClick={() => {setSearchQuery(''); setFilteredProjects(projects);}} className="ml-2 text-accent underline">Clear</button>
-                    </div>
-                )}
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {filteredProjects.map((project) => (
-                    <div 
-                        key={project.id} 
-                        onClick={() => handleProjectClick(project)}
-                        className="group cursor-pointer bg-primary rounded-2xl overflow-hidden shadow-premium hover:shadow-premium-hover transition-all duration-300 hover:-translate-y-1 border border-secondary"
-                    >
-                         <div className="h-56 overflow-hidden relative">
-                            {/* Feature 10: Smart Image for Self-Healing UI */}
-                            <SmartImage 
-                                src={project.imageGallery[0] || 'https://picsum.photos/800/600'} 
-                                alt={project.title} 
-                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                fallbackText={project.title}
-                            />
-                            <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                                AI Analyzed
-                            </div>
-                         </div>
-                         <div className="p-8">
-                            <h3 className="text-2xl font-bold text-text-primary mb-2 group-hover:text-accent transition-colors">{project.title}</h3>
-                            <p className="text-text-secondary mb-6 line-clamp-2">{project.description}</p>
-                            <div className="flex flex-wrap gap-2">
-                                {project.technologies.slice(0, 3).map((tech, i) => (
-                                    <span key={i} className="text-xs font-bold uppercase tracking-wider text-text-secondary bg-secondary px-2 py-1 rounded">
-                                        {tech}
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </AnimatedSection>
-        
-        {/* Experience & Education - Timeline Style */}
-        <AnimatedSection id="experience" title="Journey" subtitle="Timeline" className="bg-secondary/30">
-            <div className="max-w-4xl mx-auto space-y-12">
-                <div className="space-y-8">
-                    <h3 className="text-2xl font-bold text-text-primary mb-8 border-b border-text-secondary/20 pb-4">Experience</h3>
-                    {experience.map((exp) => (
-                        <div key={exp.id} className="flex flex-col md:flex-row gap-4 md:gap-8">
-                             <div className="md:w-1/4">
-                                <span className="text-sm font-bold text-accent">{exp.startDate} — {exp.endDate}</span>
-                             </div>
-                             <div className="md:w-3/4">
-                                <h4 className="text-xl font-bold text-text-primary">{exp.role}</h4>
-                                <p className="text-text-secondary mb-2">{exp.organization}</p>
-                                <p className="text-text-secondary leading-relaxed">{exp.description}</p>
-                             </div>
-                        </div>
-                    ))}
+        {/* AI Gesture Gallery Section */}
+        <section className="py-24 px-6 bg-zinc-900/50 border-y border-white/5">
+            <div className="container mx-auto">
+                <div className="mb-12 text-center">
+                    <h2 className="text-4xl font-bold mb-4">Featured Work (AI Enabled)</h2>
+                    <p className="text-gray-400">Enable camera to swipe projects with hand gestures.</p>
                 </div>
-                 <div className="space-y-8">
-                    <h3 className="text-2xl font-bold text-text-primary mb-8 border-b border-text-secondary/20 pb-4">Education</h3>
-                    {education.map((edu) => (
-                        <div key={edu.id} className="flex flex-col md:flex-row gap-4 md:gap-8">
-                             <div className="md:w-1/4">
-                                <span className="text-sm font-bold text-accent">{edu.period}</span>
-                             </div>
-                             <div className="md:w-3/4">
-                                <h4 className="text-xl font-bold text-text-primary">{edu.degree}</h4>
-                                <p className="text-text-secondary mb-2">{edu.institution}</p>
-                                <p className="text-text-secondary text-sm">{edu.details}</p>
-                             </div>
+                <MLSlider 
+                    items={projects} 
+                    renderItem={(project) => (
+                        <div className="flex flex-col items-center justify-center h-full text-center relative z-10">
+                            <SmartImage src={project.imageGallery[0]} className="absolute inset-0 w-full h-full object-cover opacity-30 blur-sm" />
+                            <h3 className="text-4xl font-bold text-white relative z-20 drop-shadow-lg">{project.title}</h3>
+                            <p className="mt-4 text-gray-200 max-w-lg relative z-20">{project.description}</p>
                         </div>
-                    ))}
-                </div>
-            </div>
-        </AnimatedSection>
-        
-        {/* Memories Gallery */}
-        {memories && memories.length > 0 && (
-             <AnimatedSection id="memories" title="Life & Moments" subtitle="Gallery">
-                <MemoriesSection memories={memories} />
-             </AnimatedSection>
-        )}
-
-        {/* Notes & Resources */}
-        {notes && notes.length > 0 && (
-             <AnimatedSection id="notes" title="Resources" subtitle="Downloads" className="bg-secondary/30">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {notes.map((note) => (
-                        <div key={note.id} className="bg-primary p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow border border-secondary">
-                             <div className="flex items-center justify-between mb-4">
-                                <div className="w-10 h-10 bg-accent/10 text-accent rounded-lg flex items-center justify-center">
-                                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                                </div>
-                                <button onClick={() => handleDownload(note)} className="text-sm font-bold text-accent hover:underline">Download</button>
-                             </div>
-                             <h3 className="font-bold text-lg mb-1">{note.title}</h3>
-                             <p className="text-sm text-text-secondary">{note.description}</p>
-                        </div>
-                    ))}
-                </div>
-             </AnimatedSection>
-        )}
-
-        {profile.promoVideo && (
-            <AnimatedSection id="promo" title="Showreel">
-                <div className="aspect-w-16 aspect-h-9 max-w-5xl mx-auto rounded-2xl overflow-hidden shadow-2xl">
-                    {profile.promoVideo.startsWith('data:video') ? (
-                         <video controls src={profile.promoVideo} className="w-full h-full object-cover"></video>
-                    ) : (
-                        <iframe src={profile.promoVideo.replace("watch?v=", "embed/")} className="w-full h-full" title="Promo"></iframe>
                     )}
-                </div>
-            </AnimatedSection>
-        )}
+                />
+            </div>
+        </section>
 
-      </main>
-      
-      <GuestbookWidget />
-      {/* Feature 1: Voice Navigator */}
-      <VoiceControl onNavigate={handleVoiceNavigate} />
-      
-      <footer id="contact" className="bg-primary py-16 border-t border-secondary w-full">
-            <div className="container mx-auto px-6">
-                <div className="flex flex-col items-center">
-                    <SectionHeading title="Let's Connect" subtitle="Contact" />
-                    <ContactForm />
-                    <div className="mt-12 mb-8">
-                        <SocialLinks links={profile.socialLinks} center={true}/>
+        {/* Parallax Stack Project List */}
+        <section className="py-32 px-4" id="projects">
+             <div className="container mx-auto mb-16">
+                <h2 className="text-5xl font-bold text-center">Selected Works</h2>
+             </div>
+             <div className="relative">
+                {projects.map((project, i) => (
+                    <ProjectCard key={project.id} project={project} index={i} total={projects.length} />
+                ))}
+             </div>
+        </section>
+
+        {/* About / Skills */}
+        <section className="py-24 bg-white text-black rounded-t-[3rem] mt-12 relative z-20">
+            <div className="container mx-auto px-6 grid md:grid-cols-2 gap-16">
+                <div>
+                    <h2 className="text-5xl font-bold mb-8">About</h2>
+                    <p className="text-xl leading-relaxed text-gray-700">{profile.about}</p>
+                    <div className="mt-8">
+                        <SocialLinks links={profile.socialLinks} />
                     </div>
-                    <p className="text-text-secondary text-sm">
-                        &copy; {new Date().getFullYear()} {profile.name}. 
-                        <span className="mx-2">•</span>
-                        <Link to="/admin" className="hover:text-highlight transition-colors">Admin Login</Link>
-                    </p>
+                </div>
+                <div>
+                    <h2 className="text-5xl font-bold mb-8">Expertise</h2>
+                    <div className="grid grid-cols-2 gap-4">
+                        {skills.map(s => (
+                            <div key={s.id} className="border-b border-black/10 py-4 flex justify-between items-center">
+                                <span className="font-bold text-lg">{s.name}</span>
+                                <span className="text-sm bg-black text-white px-2 py-1 rounded-full">{s.level}%</span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </div>
-      </footer>
+        </section>
 
-      {selectedProject && <ProjectDetailModal project={selectedProject} onClose={() => setSelectedProject(null)} />}
-      {isProfileModalOpen && <UserProfileModal onClose={() => setIsProfileModalOpen(false)} />}
-      <ProTipWidget />
-      <BackToTopButton />
-    </div>
+        {/* Footer */}
+        <footer className="bg-black text-white py-12 text-center">
+            <p className="text-gray-500 text-sm">
+                &copy; {new Date().getFullYear()} {profile.name} <br/>
+                <Link to="/admin" className="hover:text-white transition">Admin Access</Link>
+            </p>
+        </footer>
+
+        {/* Floating Widgets */}
+        <ChatWidget />
+        <VoiceControl onNavigate={() => {}} />
+
+      </div>
+    </ReactLenis>
   );
 };
 

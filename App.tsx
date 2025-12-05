@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Switch, Route } from 'react-router-dom';
 import UserView from './views/UserView';
 import AdminView from './views/AdminView';
 import { PortfolioProvider } from './context/PortfolioContext';
@@ -13,10 +13,10 @@ function App() {
       <PortfolioProvider>
         <ThemeProvider>
           <div className="font-sans transition-colors duration-300">
-            <Routes>
-              <Route path="/admin" element={<AdminView />} />
-              <Route path="/" element={<UserView />} />
-            </Routes>
+            <Switch>
+              <Route path="/admin" component={AdminView} />
+              <Route path="/" component={UserView} />
+            </Switch>
           </div>
         </ThemeProvider>
       </PortfolioProvider>

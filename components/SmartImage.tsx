@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 
-interface SmartImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
+interface SmartImageProps extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, 'src'> {
+  src?: string;
   fallbackText?: string;
 }
 

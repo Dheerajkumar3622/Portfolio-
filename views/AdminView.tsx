@@ -140,6 +140,40 @@ const LoginForm: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
     );
 };
 
+// --- COMPRESSION UTILITY ---
+const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target?.result as string;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                // Resize logic: Max width 1000px, maintain aspect ratio
+                const MAX_WIDTH = 1000;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > MAX_WIDTH) {
+                    height *= MAX_WIDTH / width;
+                    width = MAX_WIDTH;
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+                // Compress to JPEG at 0.7 quality
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                resolve(dataUrl);
+            };
+            img.onerror = (err) => reject(err);
+        };
+        reader.onerror = (error) => reject(error);
+    });
+};
+
 const fileToBase64 = (file: File): Promise<string> =>
     new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -241,14 +275,20 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
 
     const handleProfilePicChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
-            const base64 = await fileToBase64(e.target.files[0]);
+            // Use compression
+            const base64 = await compressImage(e.target.files[0]);
             setLocalData(prev => ({ ...prev, profile: { ...prev.profile, profilePicture: base64 }}));
         }
     };
     
     const handlePromoVideoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
-             const base64 = await fileToBase64(e.target.files[0]);
+             const file = e.target.files[0];
+             if (file.size > 50 * 1024 * 1024) { // 50MB check
+                 alert("Video file is too large (over 50MB). Please use a YouTube URL instead for better performance.");
+                 return;
+             }
+             const base64 = await fileToBase64(file);
              setLocalData(prev => ({ ...prev, profile: { ...prev.profile, promoVideo: base64 }}));
         }
     };
@@ -372,7 +412,8 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     const handleProjectGalleryChange = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
         if (e.target.files) {
             const files: File[] = Array.from(e.target.files);
-            const base64Promises = files.map(file => fileToBase64(file));
+            // Use compression
+            const base64Promises = files.map(file => compressImage(file));
             const base64Images = await Promise.all(base64Promises);
             
             const currentImages = localData.projects[index].imageGallery || [];
@@ -406,7 +447,8 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     const handleMemoryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
             const files: File[] = Array.from(e.target.files);
-            const base64Promises = files.map(file => fileToBase64(file));
+            // Use compression
+            const base64Promises = files.map(file => compressImage(file));
             const base64Images = await Promise.all(base64Promises);
             
             const newMemories: Memory[] = base64Images.map(img => ({
@@ -476,7 +518,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         } catch(e) {
             console.error(e);
             setSaveStatus('idle');
-            alert('Error saving data');
+            // Allow PortfolioContext to handle the alert
         }
     };
 
@@ -651,7 +693,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                                         <input type="text" value={project.videoUrl || ''} onChange={(e) => handleItemChange('projects', index, 'videoUrl', e.target.value)} placeholder="YouTube Video URL" className="bg-gray-700 border-gray-600 rounded p-2 text-white" />
                                         
                                         <div>
-                                            <label className="block text-sm text-gray-400 mb-2">Image Gallery</label>
+                                            <label className="block text-sm text-gray-400 mb-2">Image Gallery (Auto-Compressed)</label>
                                             <div className="flex flex-wrap gap-2 mb-2">
                                                 {project.imageGallery.map((img, i) => (
                                                     <div key={i} className="relative w-24 h-24">
@@ -722,7 +764,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                                 ))}
                             </div>
                             <label className="bg-accent text-white px-4 py-2 rounded cursor-pointer hover:bg-highlight">
-                                Upload Photos
+                                Upload Photos (Auto-Compressed)
                                 <input type="file" multiple accept="image/*" onChange={handleMemoryUpload} className="hidden" />
                             </label>
                         </div>

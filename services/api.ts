@@ -50,15 +50,29 @@ export const getPortfolio = async (): Promise<PortfolioData | null> => {
     );
 };
 
+// STRICT SAVE: Attempts to save to Cloud. If fail, THROWS error.
+// This prevents the "Saved Locally" silent fallback which confuses admins.
 export const savePortfolio = async (data: PortfolioData): Promise<void> => {
-    return withFallback(
-        () => fetch(`${API_BASE}/portfolio`, {
+    try {
+        const response = await fetch(`${API_BASE}/portfolio`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data),
-        }),
-        () => DB.savePortfolioDataToDB(data)
-    );
+        });
+
+        if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`Server Error (${response.status}): ${errText}`);
+        }
+
+        // If cloud save succeeded, ALSO update local DB to keep them in sync for offline reads
+        await DB.savePortfolioDataToDB(data);
+
+    } catch (error: any) {
+        console.error("Cloud Save Failed:", error);
+        // We throw so the UI shows an error. We do NOT save locally to avoid split-brain data.
+        throw error;
+    }
 };
 
 // --- Auth / User API ---

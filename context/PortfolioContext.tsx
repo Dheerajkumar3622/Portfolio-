@@ -99,8 +99,9 @@ export const PortfolioProvider: React.FC<{ children: ReactNode }> = ({ children 
         } else {
            // Database is empty (first deployment). 
            // Initialize it with default data so all devices see the same starting point.
-           console.log("Database empty. Seeding with default data...");
-           await savePortfolio(defaultData);
+           // However, do NOT auto-save via the API here to avoid auth issues or overwriting.
+           // Just set local state. The admin must "Save" explicitly to push to DB.
+           console.log("Database empty. Using default template.");
            setPortfolioData(defaultData);
         }
       } catch (error) {
@@ -116,9 +117,11 @@ export const PortfolioProvider: React.FC<{ children: ReactNode }> = ({ children 
       await savePortfolio(dataToSave);
       // We also update local state immediately for UI responsiveness
       setPortfolioData(dataToSave);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving data via API:', error);
-      alert('Failed to save data. Please check your connection.');
+      alert(`CRITICAL ERROR: Failed to save to Database.\n\nReason: ${error.message}\n\nCheck your internet connection or try reducing image sizes.`);
+      // We throw again so the Admin View component knows to stop the loading spinner
+      throw error; 
     }
   };
 

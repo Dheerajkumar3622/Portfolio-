@@ -1,41 +1,64 @@
-import React, { ReactNode } from 'react';
+
+import React, { ReactNode, useState, useEffect } from 'react';
 import { motion, useScroll, useSpring, useTransform, useVelocity } from 'framer-motion';
 
 export const PerspectiveWrapper = ({ children }: { children?: ReactNode }) => {
   const { scrollY } = useScroll();
   const scrollVelocity = useVelocity(scrollY);
-  const smoothVelocity = useSpring(scrollVelocity, { damping: 50, stiffness: 400 });
-
-  // --- Scale Logic ---
-  // Velocity range: -2000 (fast up) to 2000 (fast down)
-  // Scroll Down (>0): Scale down (0.95) -> "Going into a point"
-  // Scroll Up (<0): Scale up (1.05) -> "Coming from a point"
-  const scale = useTransform(smoothVelocity, [-2000, 0, 2000], [1.05, 1, 0.95]);
   
-  // --- Opacity Logic ---
-  // Slight fade at high speeds to enhance the "warp" feel
-  const contentOpacity = useTransform(smoothVelocity, [-2000, 0, 2000], [0.85, 1, 0.85]);
+  // Smoother spring configuration for a 'heavy', precise mechanical feel
+  const smoothVelocity = useSpring(scrollVelocity, { damping: 60, stiffness: 250 });
 
-  // --- Sun Light / God Ray Effect ---
-  // Only visible when scrolling UP (negative velocity), mimicking light coming from the center
-  const lightOpacity = useTransform(smoothVelocity, [-2500, -500, 0], [0.4, 0.1, 0]);
+  // Track viewport height to ensure the pivot point is always exactly center-screen
+  const [viewportHeight, setViewportHeight] = useState(typeof window !== 'undefined' ? window.innerHeight : 800);
+
+  useEffect(() => {
+    const handleResize = () => setViewportHeight(window.innerHeight);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // --- Dynamic Transform Origin ---
+  // This is the key to the "Centre Animation" effect.
+  // As the user scrolls, the rotation pivot moves with them, staying in the center of the viewport.
+  // Formula: currentScrollY + (viewportHeight / 2)
+  const transformOriginY = useTransform(scrollY, (y) => y + (viewportHeight / 2));
+  const transformOrigin = useTransform(transformOriginY, (y) => `50% ${y}px`);
+
+  // --- 3D Physics Transforms ---
+  
+  // 1. Tilt (RotateX):
+  // fast scroll down (positive velocity) -> tilts content back (positive deg)
+  // fast scroll up (negative velocity) -> tilts content forward (negative deg)
+  const rotateX = useTransform(smoothVelocity, [-3000, 0, 3000], [15, 0, -15]);
+  
+  // 2. Scale (Depth):
+  // Pulls back (scales down) during fast movement to provide context and "warp" feel.
+  const scale = useTransform(smoothVelocity, [-3000, 0, 3000], [0.92, 1, 0.92]);
+  
+  // 3. Opacity:
+  // Slight fade during high velocity to mask motion blur and enhance focus on stop.
+  const opacity = useTransform(smoothVelocity, [-4000, 0, 4000], [0.7, 1, 0.7]);
 
   return (
-    <div style={{ perspective: '1200px', overflow: 'hidden', minHeight: '100vh', width: '100%' }}>
-      {/* The Light/Sun Effect Overlay */}
+    <div className="relative w-full min-h-screen bg-white dark:bg-black transition-colors duration-500 overflow-hidden" style={{ perspective: '1200px' }}>
+      
+      {/* Dynamic Background Gradient overlay that reacts to scroll speed (Subtle effect) */}
       <motion.div 
-        style={{ opacity: lightOpacity }}
-        className="fixed inset-0 pointer-events-none z-50 bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.8)_0%,_transparent_70%)] mix-blend-overlay"
+        style={{ opacity: useTransform(smoothVelocity, [-3000, 0, 3000], [0.3, 0, 0.3]) }}
+        className="fixed inset-0 pointer-events-none z-20 bg-gradient-to-b from-black/10 via-transparent to-black/10 mix-blend-overlay"
       />
 
-      {/* The Content Container */}
+      {/* Main Content Wrapper */}
       <motion.div 
         style={{ 
+            rotateX,
             scale, 
-            opacity: contentOpacity,
-            transformOrigin: 'center 40vh' // Pivot point slightly above center for better eye-level feel
+            opacity,
+            transformOrigin,
+            transformStyle: 'preserve-3d'
         }}
-        className="w-full"
+        className="w-full relative z-10 will-change-transform"
       > 
         {children}
       </motion.div>

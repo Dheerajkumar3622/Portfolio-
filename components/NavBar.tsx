@@ -3,11 +3,19 @@ import React, { useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import HamburgerMenu from './HamburgerMenu';
 import { usePortfolio } from '../context/PortfolioContext';
+import { useAuth } from '../context/AuthContext';
+import AuthModal from './AuthModal';
+import UserProfileModal from './UserProfileModal';
 
 const NavBar: React.FC = () => {
     const { isDarkMode, toggleTheme } = useTheme();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const { portfolioData } = usePortfolio();
+    
+    // Auth State
+    const { currentUser } = useAuth();
+    const [isAuthOpen, setIsAuthOpen] = useState(false);
+    const [isProfileOpen, setIsProfileOpen] = useState(false);
 
     return (
         <>
@@ -27,6 +35,24 @@ const NavBar: React.FC = () => {
                     {/* Right Controls */}
                     <div className="flex items-center gap-6">
                         
+                        {/* Auth Section */}
+                        {currentUser ? (
+                            <button 
+                                onClick={() => setIsProfileOpen(true)}
+                                className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white hover:text-maroon-600 dark:hover:text-gold transition-colors flex items-center gap-2 group"
+                            >
+                                <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] group-hover:animate-pulse"></span>
+                                <span className="truncate max-w-[100px]">{currentUser.id}</span>
+                            </button>
+                        ) : (
+                            <button 
+                                onClick={() => setIsAuthOpen(true)}
+                                className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white hover:text-maroon-600 dark:hover:text-gold transition-colors border border-gray-300 dark:border-gray-700 px-4 py-2 rounded-sm hover:border-maroon-600 dark:hover:border-gold"
+                            >
+                                Login / Sign Up
+                            </button>
+                        )}
+
                         {/* Theme Toggle */}
                         <button 
                             onClick={toggleTheme}
@@ -59,6 +85,8 @@ const NavBar: React.FC = () => {
             </nav>
 
             <HamburgerMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
+            {isAuthOpen && <AuthModal onClose={() => setIsAuthOpen(false)} />}
+            {isProfileOpen && <UserProfileModal onClose={() => setIsProfileOpen(false)} />}
         </>
     );
 };

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
@@ -11,7 +12,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose }) => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [message, setMessage] = useState({ type: '', text: '' });
     const [isLoading, setIsLoading] = useState(false);
-    const { currentUser, changePassword } = useAuth();
+    const { currentUser, changePassword, logout } = useAuth();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -44,6 +45,11 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose }) => {
         setIsLoading(false);
     };
 
+    const handleLogout = () => {
+        logout();
+        onClose();
+    };
+
     return (
         <div 
             className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in-up"
@@ -60,7 +66,12 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose }) => {
                 
                 <div className="p-8">
                     <form onSubmit={handleSubmit} className="space-y-6">
-                        <h3 className="text-lg font-semibold text-center">Change Your Password</h3>
+                        <div className="text-center mb-6">
+                            <span className="block text-xs text-gray-400 uppercase tracking-widest">Logged in as</span>
+                            <span className="block text-xl font-display font-bold text-accent mt-1">{currentUser?.id}</span>
+                        </div>
+
+                        <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wide border-b border-gray-600 pb-2">Security Settings</h3>
                         {message.text && <p className={`${message.type === 'error' ? 'bg-red-500/20 text-red-300' : 'bg-green-500/20 text-green-300'} p-3 rounded-md text-center text-sm`}>{message.text}</p>}
                         
                         <div>
@@ -82,6 +93,19 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose }) => {
                             {isLoading ? 'Updating...' : 'Update Password'}
                         </button>
                     </form>
+
+                    <div className="mt-8 pt-6 border-t border-gray-700">
+                        <button 
+                            type="button" 
+                            onClick={handleLogout} 
+                            className="w-full bg-red-900/20 border border-red-500/30 text-red-400 hover:text-red-300 hover:bg-red-900/40 py-3 rounded-md text-xs font-bold uppercase tracking-widest transition-colors flex items-center justify-center gap-2"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                            </svg>
+                            Log Out
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

@@ -85,7 +85,8 @@ const defaultData: PortfolioData = {
       link: '#',
       repoLink: '#',
       imageGallery: ['https://picsum.photos/seed/drone/800/600'],
-      videoUrl: ''
+      videoUrl: '',
+      allowDownload: true
     },
     { 
       id: 'proj-futuristic-2', 
@@ -97,13 +98,24 @@ const defaultData: PortfolioData = {
       link: '#',
       repoLink: '#',
       imageGallery: ['https://picsum.photos/seed/voice/800/600'],
-      videoUrl: ''
+      videoUrl: '',
+      allowDownload: false
     },
   ],
   memories: [
-    { id: 'mem1', image: 'https://picsum.photos/seed/robot/1200/800', caption: 'First successful autonomous flight' },
+    { id: 'mem1', image: 'https://picsum.photos/seed/robot/1200/800', caption: 'First successful autonomous flight', allowDownload: true },
   ],
-  notes: [],
+  notes: [
+      {
+          id: 'note1',
+          title: 'Edge AI Optimization Guide',
+          description: 'A comprehensive cheatsheet for quantizing PyTorch models for embedded devices.',
+          fileData: '#', // Placeholder
+          fileName: 'Edge_AI_Cheatsheet.pdf',
+          fileType: 'PDF',
+          allowDownload: true
+      }
+  ],
   community: {
       memberCount: 142,
       description: "Join the 'Neural Architects' group. A community of engineers pushing the boundaries of Edge AI."
@@ -139,6 +151,10 @@ export const PortfolioProvider: React.FC<{ children: ReactNode }> = ({ children 
           // Ensure community object exists if loading from older data version
           if (!finalData.community) {
               finalData.community = defaultData.community;
+          }
+           // Ensure notes object exists
+          if (!finalData.notes) {
+              finalData.notes = defaultData.notes;
           }
           setPortfolioData(finalData);
         } else {

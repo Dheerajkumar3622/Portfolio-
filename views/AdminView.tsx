@@ -271,61 +271,6 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
             setLocalData(prev => ({ ...prev, profile: { ...prev.profile, profilePicture: base64 }}));
         }
     };
-
-    const handleGenerateVideo = async () => {
-        if (!process.env.API_KEY) {
-            alert("API_KEY missing.");
-            return;
-        }
-
-        if (typeof window !== 'undefined' && (window as any).aistudio) {
-            const aistudio = (window as any).aistudio;
-            const hasKey = await aistudio.hasSelectedApiKey();
-            if (!hasKey) {
-                const success = await aistudio.openSelectKey();
-                if (!success) return; 
-            }
-        }
-    
-        setIsGeneratingVideo(true);
-        setGenerationStatus('AI Generating...');
-    
-        try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-            const prompt = `Futuristic cinematic tech video. ${localData.profile.title}. Dark aesthetics, neon lights, circuit boards.`;
-    
-            let operation = await ai.models.generateVideos({
-                model: 'veo-3.1-fast-generate-preview',
-                prompt: prompt,
-                config: { numberOfVideos: 1, resolution: '1080p', aspectRatio: '16:9' }
-            });
-    
-            while (!operation.done) {
-                await new Promise(resolve => setTimeout(resolve, 5000));
-                operation = await ai.operations.getVideosOperation({ operation: operation });
-            }
-    
-            if (operation.response?.generatedVideos?.[0]?.video?.uri) {
-                const videoUri = operation.response.generatedVideos[0].video.uri;
-                const response = await fetch(`${videoUri}&key=${process.env.API_KEY}`);
-                const blob = await response.blob();
-                const reader = new FileReader();
-                reader.readAsDataURL(blob);
-                reader.onloadend = () => {
-                    const base64data = reader.result as string;
-                    setLocalData(prev => ({
-                        ...prev,
-                        profile: { ...prev.profile, promoVideo: base64data }
-                    }));
-                    setIsGeneratingVideo(false);
-                    alert('Video Generated!');
-                };
-            }
-        } catch (error) {
-            alert('Generation Failed');
-            setIsGeneratingVideo(false);
-        }
-    };
     
     const handleItemChange = <T extends object>(section: keyof PortfolioData, index: number, field: keyof T, value: T[keyof T]) => {
         setLocalData(prev => {
@@ -333,6 +278,16 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
             newSection[index] = { ...newSection[index], [field]: value };
             return { ...prev, [section]: newSection };
         });
+    };
+
+    const handleNoteFileChange = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+        if(e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            const base64 = await fileToBase64(file);
+            // This is a bit simplified, ideally update fileType too
+            handleItemChange('notes', index, 'fileData', base64);
+            handleItemChange('notes', index, 'fileName', file.name);
+        }
     };
     
     const handleSocialLinkChange = (index: number, field: keyof SocialLink, value: string) => {
@@ -373,13 +328,14 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         }
     };
 
-    const handleAddItem = (section: 'education' | 'experience' | 'projects' | 'skills') => {
+    const handleAddItem = (section: 'education' | 'experience' | 'projects' | 'skills' | 'notes') => {
         const newItem = {
             id: `new-${Date.now()}`,
             ...(section === 'education' && { degree: '', institution: '', period: '', details: '' }),
             ...(section === 'experience' && { role: '', organization: '', startDate: '', endDate: '', description: '' }),
-            ...(section === 'projects' && { title: 'New Project', description: '', longDescription: '', keyLearning: '', technologies: [], link: '', repoLink: '', imageGallery: [] }),
+            ...(section === 'projects' && { title: 'New Project', description: '', longDescription: '', keyLearning: '', technologies: [], link: '', repoLink: '', imageGallery: [], allowDownload: false }),
             ...(section === 'skills' && { name: '', level: 50 }),
+            ...(section === 'notes' && { title: '', description: '', fileData: '', fileName: '', fileType: 'PDF', allowDownload: false }),
         };
 
         setLocalData(prev => ({
@@ -422,7 +378,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         }
     };
 
-    const navItems = ['Profile', 'Network', 'Projects', 'Experience', 'Education', 'Public Chat', 'Contact Leads'];
+    const navItems = ['Profile', 'Network', 'Projects', 'Resources', 'Experience', 'Education', 'Public Chat', 'Contact Leads'];
 
     return (
         <div className="flex h-screen bg-gray-50 dark:bg-black text-gray-900 dark:text-white font-sans overflow-hidden transition-colors duration-500">
@@ -554,6 +510,66 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                         </div>
                     )}
 
+                    {activeTab === 'Resources' && (
+                        <div className="space-y-12 animate-fade-in-up">
+                            <div className="flex justify-between items-end">
+                                <SectionHeader title="Resources & Downloads" subtitle="Upload notes and manage permissions" />
+                                <ActionButton onClick={() => handleAddItem('notes')}>+ Add Note</ActionButton>
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-6">
+                                {localData.notes.map((note, index) => (
+                                    <div key={note.id} className="bg-white dark:bg-zinc-900 p-6 shadow-md border-l-4 border-gray-200 dark:border-gray-800">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <h4 className="font-bold">Note #{index + 1}</h4>
+                                            <div className="flex items-center gap-4">
+                                                <label className="flex items-center gap-2 cursor-pointer">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={note.allowDownload || false} 
+                                                        onChange={(e) => handleItemChange('notes', index, 'allowDownload', e.target.checked)} 
+                                                        className="accent-maroon-600 w-4 h-4"
+                                                    />
+                                                    <span className="text-xs uppercase font-bold text-gray-500">Allow Download</span>
+                                                </label>
+                                                <button onClick={() => handleRemoveItem('notes', note.id)} className="text-red-500 text-xs uppercase font-bold">Remove</button>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-4">
+                                            <StyledInput value={note.title} onChange={(e) => handleItemChange('notes', index, 'title', e.target.value)} placeholder="Note Title" />
+                                            <StyledTextArea value={note.description} onChange={(e) => handleItemChange('notes', index, 'description', e.target.value)} placeholder="Description" rows={2} />
+                                            <div className="flex items-center gap-4">
+                                                <input type="file" onChange={(e) => handleNoteFileChange(e, index)} className="text-xs" />
+                                                <span className="text-xs text-gray-400">{note.fileName || "No file uploaded"}</span>
+                                                <StyledInput value={note.fileType} onChange={(e) => handleItemChange('notes', index, 'fileType', e.target.value)} placeholder="Type (PDF, TXT)" className="w-24" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            
+                            <SectionHeader title="Memories Permissions" subtitle="Manage gallery downloads" />
+                            <div className="grid grid-cols-3 gap-4">
+                                {localData.memories.map((mem, index) => (
+                                    <div key={mem.id} className="relative group">
+                                        <img src={mem.image} className="w-full h-32 object-cover rounded-sm" />
+                                        <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-1 rounded-sm">
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={mem.allowDownload || false} 
+                                                    onChange={(e) => handleItemChange('memories', index, 'allowDownload', e.target.checked)} 
+                                                    className="accent-maroon-600"
+                                                />
+                                                <span className="text-xs font-bold text-black">Downloadable</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {activeTab === 'Projects' && (
                         <div className="space-y-12 animate-fade-in-up">
                              <div className="flex justify-between items-end">
@@ -565,7 +581,18 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                                 <div key={project.id} className="bg-white dark:bg-zinc-900 p-8 shadow-xl border-l-4 border-gray-200 dark:border-gray-800 hover:border-maroon-600 dark:hover:border-gold transition-colors duration-300">
                                     <div className="flex justify-between mb-8">
                                         <h3 className="text-xl font-bold text-gray-900 dark:text-white">Case Study {index + 1}</h3>
-                                        <ActionButton variant="danger" onClick={() => handleRemoveItem('projects', project.id)}>Remove</ActionButton>
+                                        <div className="flex gap-4">
+                                            <label className="flex items-center gap-2 cursor-pointer">
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={project.allowDownload || false} 
+                                                    onChange={(e) => handleItemChange('projects', index, 'allowDownload', e.target.checked)} 
+                                                    className="accent-maroon-600 w-4 h-4"
+                                                />
+                                                <span className="text-xs uppercase font-bold text-gray-500">Assets Downloadable</span>
+                                            </label>
+                                            <ActionButton variant="danger" onClick={() => handleRemoveItem('projects', project.id)}>Remove</ActionButton>
+                                        </div>
                                     </div>
                                     
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">

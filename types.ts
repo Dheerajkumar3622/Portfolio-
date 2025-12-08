@@ -24,6 +24,7 @@ export interface Project {
   repoLink?: string;
   imageGallery: string[]; // Array of Base64 strings or URLs
   videoUrl?: string; // URL for YouTube or other video embed
+  allowDownload?: boolean; // Admin permission
 }
 
 export interface Experience {
@@ -54,15 +55,17 @@ export interface Memory {
   id: string;
   image: string; // Base64 string
   caption?: string;
+  allowDownload?: boolean; // Admin permission
 }
 
 export interface Note {
   id: string;
   title: string;
   description: string;
-  fileData: string; // Base64 encoded file
+  fileData: string; // Base64 encoded file or URL
   fileName: string;
-  fileType: string;
+  fileType: string; // 'PDF', 'TXT', etc.
+  allowDownload?: boolean; // Admin permission
 }
 
 export interface CommunityData {
@@ -81,7 +84,6 @@ export interface PortfolioData {
   community: CommunityData;
 }
 
-// FIX: Add missing ChatMessage interface
 // For Chat Widget
 export interface ChatMessage {
   role: 'user' | 'model';

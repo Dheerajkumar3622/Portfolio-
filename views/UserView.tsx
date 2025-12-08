@@ -1,6 +1,4 @@
-
 import React, { useEffect, useRef } from 'react';
-import { ReactLenis } from '@studio-freight/react-lenis';
 import { usePortfolio } from '../context/PortfolioContext';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import ChatWidget from '../components/ChatWidget';
@@ -8,7 +6,6 @@ import MLSlider from '../components/MLSlider';
 import SmartImage from '../components/SmartImage';
 import VoiceControl from '../components/VoiceControl';
 import SocialLinks from '../components/SocialLinks';
-import { Link } from 'react-router-dom';
 
 // --- Parallax Card Component ---
 const ProjectCard: React.FC<{ project: any; index: number; total: number }> = ({ project, index, total }) => {
@@ -58,7 +55,6 @@ const UserView: React.FC = () => {
   const { profile, projects, skills } = portfolioData;
 
   return (
-    <ReactLenis root>
       <div className="bg-black text-white min-h-screen font-sans selection:bg-accent selection:text-white overflow-x-hidden">
         
         {/* Hero Section */}
@@ -144,7 +140,7 @@ const UserView: React.FC = () => {
         <footer className="bg-black text-white py-12 text-center">
             <p className="text-gray-500 text-sm">
                 &copy; {new Date().getFullYear()} {profile.name} <br/>
-                <Link to="/admin" className="hover:text-white transition">Admin Access</Link>
+                <a href="#/admin" className="hover:text-white transition">Admin Access</a>
             </p>
         </footer>
 
@@ -153,7 +149,6 @@ const UserView: React.FC = () => {
         <VoiceControl onNavigate={() => {}} />
 
       </div>
-    </ReactLenis>
   );
 };
 

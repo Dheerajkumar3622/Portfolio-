@@ -2,12 +2,58 @@
 import React, { useState, useEffect } from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import type { PortfolioData, Education, Skill, Project, Experience, GuestbookEntry, Lead, SocialLink, Memory, Note, Report, User } from '../types';
 import TagInput from '../components/TagInput';
 import { fetchGuestbook, removeGuestbook, fetchLeads, fetchReports, removeReport, fetchAllUsers, removeUser, postGuestbook, checkSystemHealth } from '../services/api';
 import { GoogleGenAI } from "@google/genai";
 
 const ADMIN_USERNAME = "Admin";
+
+// --- Styled Components for Premium UI ---
+const SectionHeader: React.FC<{ title: string; subtitle?: string }> = ({ title, subtitle }) => (
+    <div className="mb-10 border-b border-gray-200 dark:border-gray-800 pb-4">
+        <h2 className="text-3xl font-display font-bold text-gray-900 dark:text-white">{title}</h2>
+        {subtitle && <p className="text-sm text-gray-500 mt-1 font-mono uppercase tracking-wider">{subtitle}</p>}
+    </div>
+);
+
+const InputGroup: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+    <div className="mb-6">
+        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">{label}</label>
+        {children}
+    </div>
+);
+
+const StyledInput = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
+    <input 
+        {...props} 
+        className="w-full bg-transparent border-b border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white py-2 focus:outline-none focus:border-maroon-600 dark:focus:border-gold transition-colors text-lg placeholder-gray-400"
+    />
+);
+
+const StyledTextArea = (props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
+    <textarea 
+        {...props} 
+        className="w-full bg-gray-50 dark:bg-zinc-900/50 border border-gray-200 dark:border-gray-800 rounded-sm text-gray-900 dark:text-white p-4 focus:outline-none focus:border-maroon-600 dark:focus:border-gold transition-colors resize-y min-h-[100px]"
+    />
+);
+
+const ActionButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'danger' | 'secondary' }> = ({ children, variant = 'primary', className, ...props }) => {
+    const baseStyle = "px-6 py-2 text-sm font-bold uppercase tracking-wider transition-all duration-300 transform active:scale-95";
+    const variants = {
+        primary: "bg-maroon-700 text-white hover:bg-maroon-600 shadow-lg",
+        danger: "bg-red-600/10 text-red-600 border border-red-600/20 hover:bg-red-600 hover:text-white",
+        secondary: "bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700"
+    };
+    
+    return (
+        <button className={`${baseStyle} ${variants[variant]} ${className}`} {...props}>
+            {children}
+        </button>
+    );
+};
+
 
 const LoginForm: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
     const [username, setUsername] = useState('');
@@ -18,15 +64,13 @@ const LoginForm: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
     
     const { login, signup } = useAuth();
 
-    // Attempt to log in as "Admin" against the database
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
         setIsLoading(true);
 
-        // Enforce Admin username check
         if (username.toLowerCase() !== ADMIN_USERNAME.toLowerCase()) {
-            setError('Access Denied. You must log in as "Admin" to access this panel.');
+            setError('Access Denied. Admin privileges required.');
             setIsLoading(false);
             return;
         }
@@ -36,7 +80,6 @@ const LoginForm: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
             onLogin();
         } else {
             setError(result.message);
-            // If user not found, suggest setup
             if (result.message.includes("Invalid username") || result.message.includes("not found")) {
                 setIsSetupMode(true);
             }
@@ -44,7 +87,6 @@ const LoginForm: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
         setIsLoading(false);
     };
 
-    // Create the "Admin" user in the database if it doesn't exist
     const handleSetup = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
@@ -58,7 +100,6 @@ const LoginForm: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
 
         const result = await signup(ADMIN_USERNAME, password);
         if (result.success) {
-            // Auto login after signup
             await login(ADMIN_USERNAME, password);
             onLogin();
         } else {
@@ -68,71 +109,39 @@ const LoginForm: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-900">
-            <div className="bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-md border border-gray-700">
-                <h1 className="text-3xl font-bold text-center mb-2 text-white">Admin Access</h1>
-                <p className="text-center text-gray-400 mb-6 text-sm">
-                    {isSetupMode ? "Initialize Admin Account" : "Secure Login"}
-                </p>
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-black transition-colors duration-500">
+            <div className="w-full max-w-md p-12 bg-white dark:bg-zinc-900 shadow-2xl rounded-sm border-t-4 border-maroon-600">
+                <div className="text-center mb-10">
+                    <h1 className="text-4xl font-display font-bold text-gray-900 dark:text-white mb-2">Studio Access</h1>
+                    <div className="h-1 w-12 bg-gold mx-auto"></div>
+                </div>
                 
-                {error && <div className="bg-red-500/20 text-red-300 p-3 rounded-md mb-4 text-sm border border-red-500/30">{error}</div>}
+                {error && <div className="mb-6 text-center text-xs text-red-500 font-mono border border-red-500/20 p-2 bg-red-500/5">{error}</div>}
                 
                 {isSetupMode ? (
-                     <form onSubmit={handleSetup} className="space-y-6">
-                        <div className="bg-blue-900/20 p-3 rounded border border-blue-500/30 text-blue-200 text-xs mb-4">
-                            <strong>Setup Mode:</strong> No Admin account detected. Create your secure password now.
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300">Admin Username</label>
-                            <input
-                                type="text"
-                                value={ADMIN_USERNAME}
-                                disabled
-                                className="w-full bg-gray-700/50 border-gray-600 rounded-md p-3 text-gray-400 mt-1 cursor-not-allowed"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300">Set Password</label>
-                            <input
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full bg-gray-700 border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-accent mt-1"
-                                placeholder="Create a strong password"
-                                autoFocus
-                            />
-                        </div>
-                        <button type="submit" disabled={isLoading} className="w-full bg-green-600 text-white font-bold py-3 rounded-md hover:bg-green-700 transition-colors disabled:opacity-50">
-                            {isLoading ? 'Creating Account...' : 'Create Admin Account'}
-                        </button>
-                        <button type="button" onClick={() => setIsSetupMode(false)} className="w-full text-center text-gray-400 text-sm hover:text-white">Cancel</button>
+                     <form onSubmit={handleSetup} className="space-y-8">
+                        <div className="text-center text-xs text-gold font-mono uppercase tracking-widest">Initial System Setup</div>
+                        <InputGroup label="Admin Username">
+                            <StyledInput type="text" value={ADMIN_USERNAME} disabled className="opacity-50 cursor-not-allowed" />
+                        </InputGroup>
+                        <InputGroup label="Set Master Password">
+                            <StyledInput type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus placeholder="Enter strong password" />
+                        </InputGroup>
+                        <ActionButton type="submit" disabled={isLoading} className="w-full">
+                            {isLoading ? 'Initializing...' : 'Create Admin Account'}
+                        </ActionButton>
                     </form>
                 ) : (
-                    <form onSubmit={handleLogin} className="space-y-6">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300">Username</label>
-                            <input
-                                type="text"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
-                                className="w-full bg-gray-700 border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-accent mt-1"
-                                placeholder="Enter 'Admin'"
-                                autoComplete="username"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300">Password</label>
-                            <input
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full bg-gray-700 border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-accent mt-1"
-                                autoComplete="current-password"
-                            />
-                        </div>
-                        <button type="submit" disabled={isLoading} className="w-full bg-gradient-to-r from-secondary to-accent text-white font-bold py-3 rounded-md hover:opacity-90 transition-opacity disabled:opacity-50">
-                            {isLoading ? 'Authenticating...' : 'Login'}
-                        </button>
+                    <form onSubmit={handleLogin} className="space-y-8">
+                        <InputGroup label="Username">
+                            <StyledInput type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Identify yourself" />
+                        </InputGroup>
+                        <InputGroup label="Password">
+                            <StyledInput type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter credentials" />
+                        </InputGroup>
+                        <ActionButton type="submit" disabled={isLoading} className="w-full">
+                            {isLoading ? 'Verifying...' : 'Enter Studio'}
+                        </ActionButton>
                     </form>
                 )}
             </div>
@@ -150,7 +159,6 @@ const compressImage = (file: File): Promise<string> => {
             img.src = event.target?.result as string;
             img.onload = () => {
                 const canvas = document.createElement('canvas');
-                // Resize logic: Max width 1000px, maintain aspect ratio
                 const MAX_WIDTH = 1000;
                 let width = img.width;
                 let height = img.height;
@@ -164,7 +172,6 @@ const compressImage = (file: File): Promise<string> => {
                 canvas.height = height;
                 const ctx = canvas.getContext('2d');
                 ctx?.drawImage(img, 0, 0, width, height);
-                // Compress to JPEG at 0.7 quality
                 const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
                 resolve(dataUrl);
             };
@@ -194,21 +201,15 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     const [isDirty, setIsDirty] = useState(false);
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
     const [systemHealth, setSystemHealth] = useState<{status: string, database: string}>({ status: 'checking', database: 'unknown' });
+    const { toggleTheme, isDarkMode } = useTheme();
 
-    // Chat reply state
     const [adminReply, setAdminReply] = useState('');
-
-    // State for new note upload
-    const [newNote, setNewNote] = useState<{ title: string; description: string; file: File | null }>({ title: '', description: '', file: null });
-    const [uploadingNote, setUploadingNote] = useState(false);
-
-    // State for video generation
     const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
     const [generationStatus, setGenerationStatus] = useState('');
 
     useEffect(() => {
         setLocalData(portfolioData);
-        setIsDirty(false); // Reset dirty state when portfolioData from context changes
+        setIsDirty(false);
     }, [portfolioData]);
 
     useEffect(() => {
@@ -219,7 +220,6 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         }
     }, [localData, portfolioData]);
 
-    // Check health on mount
     useEffect(() => {
         const check = async () => {
             const health = await checkSystemHealth();
@@ -228,40 +228,21 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         check();
     }, []);
 
-    const fetchGuestbookData = async () => {
-        setGuestbookEntries(await fetchGuestbook({limit: 50})); // Load recent for chat view
-    };
-
-    const fetchReportData = async () => {
-        setReports(await fetchReports());
-    };
-
-    const fetchUsersData = async () => {
-        setUsers(await fetchAllUsers());
-    };
+    const fetchGuestbookData = async () => { setGuestbookEntries(await fetchGuestbook({limit: 50})); };
+    const fetchReportData = async () => { setReports(await fetchReports()); };
+    const fetchUsersData = async () => { setUsers(await fetchAllUsers()); };
 
     useEffect(() => {
         const fetchData = async () => {
-            if(activeTab === 'Public Chat') {
-                fetchGuestbookData();
-            }
-            if(activeTab === 'Contact Leads') {
-                setLeads(await fetchLeads());
-            }
-            if (activeTab === 'Moderation') {
-                fetchReportData();
-            }
-            if (activeTab === 'User Management') {
-                fetchUsersData();
-            }
+            if(activeTab === 'Public Chat') fetchGuestbookData();
+            if(activeTab === 'Contact Leads') setLeads(await fetchLeads());
+            if (activeTab === 'Moderation') fetchReportData();
+            if (activeTab === 'User Management') fetchUsersData();
         };
         fetchData();
         
-        // Poll for chat if tab is active
         let interval: any;
-        if(activeTab === 'Public Chat') {
-             interval = setInterval(fetchGuestbookData, 3000);
-        }
+        if(activeTab === 'Public Chat') interval = setInterval(fetchGuestbookData, 3000);
         return () => { if(interval) clearInterval(interval); }
     }, [activeTab]);
 
@@ -272,30 +253,28 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
             profile: { ...prev.profile, [name]: value }
         }));
     };
+    
+    const handleCommunityChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target;
+        setLocalData(prev => ({
+            ...prev,
+            community: { 
+                ...prev.community, 
+                [name]: name === 'memberCount' ? parseInt(value) || 0 : value 
+            }
+        }));
+    };
 
     const handleProfilePicChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
-            // Use compression
             const base64 = await compressImage(e.target.files[0]);
             setLocalData(prev => ({ ...prev, profile: { ...prev.profile, profilePicture: base64 }}));
-        }
-    };
-    
-    const handlePromoVideoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-             const file = e.target.files[0];
-             if (file.size > 50 * 1024 * 1024) { // 50MB check
-                 alert("Video file is too large (over 50MB). Please use a YouTube URL instead for better performance.");
-                 return;
-             }
-             const base64 = await fileToBase64(file);
-             setLocalData(prev => ({ ...prev, profile: { ...prev.profile, promoVideo: base64 }}));
         }
     };
 
     const handleGenerateVideo = async () => {
         if (!process.env.API_KEY) {
-            alert("API_KEY is not defined in the environment variables. Please add it to Render settings to use Veo.");
+            alert("API_KEY missing.");
             return;
         }
 
@@ -309,45 +288,27 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         }
     
         setIsGeneratingVideo(true);
-        setGenerationStatus('Initializing AI video generation...');
+        setGenerationStatus('AI Generating...');
     
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-            
-            const projectTitles = localData.projects.map(p => p.title).join(', ');
-            const prompt = `A high-tech, cinematic promotional video for an Electronics & Communication Engineer portfolio. 
-            Visuals of advanced circuit boards, soldering components, embedded systems code on screens, and futuristic IoT devices. 
-            Professional lighting, 4k resolution, slow motion shots. 
-            Themes based on: ${localData.profile.about.substring(0, 200)}. 
-            Featuring concepts like: ${projectTitles}.`;
-    
-            setGenerationStatus('Submitting request to Veo (this may take a moment)...');
+            const prompt = `Futuristic cinematic tech video. ${localData.profile.title}. Dark aesthetics, neon lights, circuit boards.`;
     
             let operation = await ai.models.generateVideos({
                 model: 'veo-3.1-fast-generate-preview',
                 prompt: prompt,
-                config: {
-                    numberOfVideos: 1,
-                    resolution: '1080p',
-                    aspectRatio: '16:9'
-                }
+                config: { numberOfVideos: 1, resolution: '1080p', aspectRatio: '16:9' }
             });
     
-            setGenerationStatus('Generating video... (This usually takes 1-2 minutes)');
-    
             while (!operation.done) {
-                await new Promise(resolve => setTimeout(resolve, 10000)); // Poll every 10s
-                setGenerationStatus('Still generating... Please wait.');
+                await new Promise(resolve => setTimeout(resolve, 5000));
                 operation = await ai.operations.getVideosOperation({ operation: operation });
             }
     
             if (operation.response?.generatedVideos?.[0]?.video?.uri) {
-                setGenerationStatus('Download complete. Processing video...');
                 const videoUri = operation.response.generatedVideos[0].video.uri;
-                
                 const response = await fetch(`${videoUri}&key=${process.env.API_KEY}`);
                 const blob = await response.blob();
-                
                 const reader = new FileReader();
                 reader.readAsDataURL(blob);
                 reader.onloadend = () => {
@@ -357,18 +318,12 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                         profile: { ...prev.profile, promoVideo: base64data }
                     }));
                     setIsGeneratingVideo(false);
-                    setGenerationStatus('');
-                    alert('Video generated successfully! Please click "Save All Changes" to persist it.');
+                    alert('Video Generated!');
                 };
-            } else {
-                throw new Error('No video URI returned.');
             }
-    
         } catch (error) {
-            console.error('Video generation failed:', error);
-            alert('Failed to generate video. Please try again or check your API key quota.');
+            alert('Generation Failed');
             setIsGeneratingVideo(false);
-            setGenerationStatus('');
         }
     };
     
@@ -393,7 +348,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
             ...prev,
             profile: {
                 ...prev.profile,
-                socialLinks: [...prev.profile.socialLinks, {id: `new-${Date.now()}`, platform: 'Website', url: ''}]
+                socialLinks: [...prev.profile.socialLinks, {id: `new-${Date.now()}`, platform: 'Platform', url: ''}]
             }
         }));
     };
@@ -408,62 +363,30 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         }));
     };
 
-
     const handleProjectGalleryChange = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
         if (e.target.files) {
             const files: File[] = Array.from(e.target.files);
-            // Use compression
             const base64Promises = files.map(file => compressImage(file));
             const base64Images = await Promise.all(base64Promises);
-            
             const currentImages = localData.projects[index].imageGallery || [];
             handleItemChange<Project>('projects', index, 'imageGallery', [...currentImages, ...base64Images]);
         }
     };
 
-    const removeProjectGalleryImage = (projectIndex: number, imageIndex: number) => {
-        const updatedImages = localData.projects[projectIndex].imageGallery.filter((_, i) => i !== imageIndex);
-        handleItemChange<Project>('projects', projectIndex, 'imageGallery', updatedImages);
-    };
-
-    const handleAddItem = (section: 'education' | 'experience' | 'projects' | 'skills' | 'memories') => {
+    const handleAddItem = (section: 'education' | 'experience' | 'projects' | 'skills') => {
         const newItem = {
             id: `new-${Date.now()}`,
             ...(section === 'education' && { degree: '', institution: '', period: '', details: '' }),
             ...(section === 'experience' && { role: '', organization: '', startDate: '', endDate: '', description: '' }),
-            ...(section === 'projects' && { title: '', description: '', longDescription: '', keyLearning: '', technologies: [], link: '', repoLink: '', imageGallery: [], videoUrl: '' }),
+            ...(section === 'projects' && { title: 'New Project', description: '', longDescription: '', keyLearning: '', technologies: [], link: '', repoLink: '', imageGallery: [] }),
             ...(section === 'skills' && { name: '', level: 50 }),
-            ...(section === 'memories' && { image: '', caption: '' }),
         };
-
-        if(section === 'memories') return;
 
         setLocalData(prev => ({
             ...prev,
             [section]: [...(prev[section] as any[]), newItem]
         }));
     };
-    
-    const handleMemoryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files) {
-            const files: File[] = Array.from(e.target.files);
-            // Use compression
-            const base64Promises = files.map(file => compressImage(file));
-            const base64Images = await Promise.all(base64Promises);
-            
-            const newMemories: Memory[] = base64Images.map(img => ({
-                id: `new-${Date.now()}-${Math.random()}`,
-                image: img,
-                caption: ''
-            }));
-            
-            setLocalData(prev => ({
-                ...prev,
-                memories: [...prev.memories, ...newMemories]
-            }));
-        }
-    };
-
 
     const handleRemoveItem = (section: keyof Omit<PortfolioData, 'profile'>, id: string) => {
         setLocalData(prev => ({
@@ -472,66 +395,24 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         }));
     };
 
-    const handleNoteFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            setNewNote(prev => ({ ...prev, file: e.target.files![0] }));
-        }
-    }
-
-    const handleAddNote = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!newNote.title || !newNote.description || !newNote.file) {
-             alert('Please fill in all note fields and select a file.');
-             return;
-        }
-        setUploadingNote(true);
-        try {
-            const base64 = await fileToBase64(newNote.file);
-            const noteData: Note = {
-                id: `note-${Date.now()}`,
-                title: newNote.title,
-                description: newNote.description,
-                fileData: base64,
-                fileName: newNote.file.name,
-                fileType: newNote.file.type
-            };
-            setLocalData(prev => ({ ...prev, notes: [...prev.notes, noteData] }));
-            setNewNote({ title: '', description: '', file: null });
-            // Reset file input (simple way)
-            const fileInput = document.getElementById('note-file-input') as HTMLInputElement;
-            if(fileInput) fileInput.value = '';
-        } catch (error) {
-            console.error(error);
-            alert('Error uploading file');
-        } finally {
-            setUploadingNote(false);
-        }
-    };
-
     const handleSave = async () => {
         setSaveStatus('saving');
         try {
             await saveData(localData);
-            setPortfolioData(localData); // Update context
+            setPortfolioData(localData);
             setSaveStatus('saved');
             setTimeout(() => setSaveStatus('idle'), 3000);
         } catch(e) {
-            console.error(e);
             setSaveStatus('idle');
-            // Allow PortfolioContext to handle the alert
+            alert("Save failed. Check console.");
         }
     };
 
     const handleReplyToGuestbook = async (entry: GuestbookEntry) => {
         if(!adminReply.trim()) return;
-        try {
-            // Replying as admin post
-            await postGuestbook({ userId: 'Admin', message: `@${entry.userId} ${adminReply}` });
-            setAdminReply('');
-            fetchGuestbookData();
-        } catch(e) {
-            alert("Failed to reply");
-        }
+        await postGuestbook({ userId: 'Admin', message: `@${entry.userId} ${adminReply}` });
+        setAdminReply('');
+        fetchGuestbookData();
     };
 
     const handleDeleteGuestbook = async (id: string) => {
@@ -540,343 +421,241 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
             fetchGuestbookData();
         }
     };
-    
-    const handleDeleteReport = async (id: string) => {
-         await removeReport(id);
-         fetchReportData();
-    };
 
-    const handleBanUser = async (id: string) => {
-        if(window.confirm(`Are you sure you want to delete user ${id}? This cannot be undone.`)) {
-            await removeUser(id);
-            fetchUsersData();
-        }
-    };
+    const navItems = ['Profile', 'Network', 'Projects', 'Experience', 'Education', 'Public Chat', 'Contact Leads'];
 
     return (
-        <div className="flex h-screen bg-gray-900 text-gray-100 overflow-hidden font-sans">
+        <div className="flex h-screen bg-gray-50 dark:bg-black text-gray-900 dark:text-white font-sans overflow-hidden transition-colors duration-500">
             {/* Sidebar */}
-            <aside className="w-64 bg-gray-800 flex flex-col border-r border-gray-700">
-                <div className="p-6 border-b border-gray-700">
-                    <h2 className="text-xl font-bold text-accent">Admin Panel</h2>
-                    <p className="text-xs text-gray-400 mt-1">Manage Portfolio & Data</p>
-                    <div className="flex items-center gap-2 mt-4 text-xs">
+            <aside className="w-64 bg-zinc-950 text-white flex flex-col border-r border-zinc-900 shadow-2xl relative z-20">
+                <div className="p-8">
+                    <h2 className="text-xl font-display font-bold text-gold tracking-widest">STUDIO<span className="text-white">OS</span></h2>
+                    <div className="flex items-center gap-2 mt-2 text-[10px] text-gray-500 font-mono uppercase">
                         <span className={`w-2 h-2 rounded-full ${systemHealth.status === 'ok' ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                        <span>DB: {systemHealth.database}</span>
+                        {systemHealth.database === 'connected' ? 'Systems Online' : 'Offline Mode'}
                     </div>
                 </div>
-                <nav className="flex-1 overflow-y-auto py-4">
-                    {['Profile', 'Skills', 'Projects', 'Experience', 'Education', 'Memories', 'Notes', 'Public Chat', 'Contact Leads', 'Moderation', 'User Management'].map(tab => (
+                
+                <nav className="flex-1 overflow-y-auto py-4 px-4 space-y-1">
+                    {navItems.map(tab => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
-                            className={`w-full text-left px-6 py-3 transition-colors ${activeTab === tab ? 'bg-gray-700 text-accent border-r-4 border-accent' : 'text-gray-400 hover:bg-gray-700/50 hover:text-gray-200'}`}
+                            className={`w-full text-left px-4 py-3 text-sm font-bold uppercase tracking-wider rounded-sm transition-all duration-300 ${
+                                activeTab === tab 
+                                ? 'bg-maroon-900 text-gold border-l-2 border-gold shadow-lg pl-5' 
+                                : 'text-gray-500 hover:text-white hover:bg-white/5'
+                            }`}
                         >
                             {tab}
                         </button>
                     ))}
+                    
+                    <div className="mt-8 pt-8 border-t border-white/10">
+                        {['Skills', 'Moderation', 'User Management'].map(tab => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                className={`w-full text-left px-4 py-3 text-xs font-mono uppercase tracking-widest transition-colors ${activeTab === tab ? 'text-gold' : 'text-gray-600 hover:text-gray-400'}`}
+                            >
+                                {tab}
+                            </button>
+                        ))}
+                    </div>
                 </nav>
-                <div className="p-4 border-t border-gray-700">
-                    <button onClick={onLogout} className="w-full bg-red-500/10 text-red-400 py-2 rounded-md hover:bg-red-500/20 transition-colors">Logout</button>
+
+                <div className="p-4 border-t border-white/10">
+                    <button onClick={toggleTheme} className="text-xs text-gray-500 hover:text-white mb-4 block w-full text-left uppercase tracking-widest">
+                         {isDarkMode ? "☀ Light Mode" : "☾ Dark Mode"}
+                    </button>
+                    <button onClick={onLogout} className="text-xs text-red-500 hover:text-red-400 uppercase tracking-widest">
+                        → Terminate Session
+                    </button>
                 </div>
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 flex flex-col overflow-hidden">
-                <header className="bg-gray-800 border-b border-gray-700 p-4 flex justify-between items-center">
-                    <h1 className="text-xl font-semibold">{activeTab}</h1>
-                    <div className="flex items-center gap-4">
-                        {isDirty && <span className="text-yellow-400 text-sm">Unsaved Changes</span>}
-                        <button 
+            <main className="flex-1 flex flex-col overflow-hidden relative">
+                <header className="bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 px-8 py-5 flex justify-between items-center z-10 sticky top-0">
+                    <h1 className="text-xl font-display font-bold text-gray-900 dark:text-white">{activeTab}</h1>
+                    <div className="flex items-center gap-6">
+                        {isDirty && <span className="text-maroon-600 dark:text-gold text-xs font-bold uppercase animate-pulse">Unsaved Changes</span>}
+                        <ActionButton 
                             onClick={handleSave} 
                             disabled={saveStatus === 'saving'}
-                            className={`px-6 py-2 rounded-md font-bold transition-all ${
-                                saveStatus === 'saved' ? 'bg-green-500 text-white' : 
-                                saveStatus === 'saving' ? 'bg-gray-600 text-gray-300' :
-                                'bg-accent text-white hover:bg-highlight'
-                            }`}
+                            className={saveStatus === 'saved' ? 'bg-green-600' : ''}
                         >
-                            {saveStatus === 'saved' ? 'Saved!' : saveStatus === 'saving' ? 'Saving...' : 'Save All Changes'}
-                        </button>
+                            {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Syncing...' : 'Save Changes'}
+                        </ActionButton>
                     </div>
                 </header>
 
-                <div className="flex-1 overflow-y-auto p-8">
+                <div className="flex-1 overflow-y-auto p-8 lg:p-12 scrollbar-hide">
                     {activeTab === 'Profile' && (
-                        <div className="space-y-6 max-w-3xl">
-                            <div className="grid grid-cols-2 gap-6">
+                        <div className="max-w-4xl animate-fade-in-up">
+                            <SectionHeader title="Identity" subtitle="Manage your digital persona" />
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mb-10">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-1">Full Name</label>
-                                    <input type="text" name="name" value={localData.profile.name} onChange={handleProfileChange} className="w-full bg-gray-700 border-gray-600 rounded p-2 text-white" />
+                                     <InputGroup label="Full Name">
+                                        <StyledInput name="name" value={localData.profile.name} onChange={handleProfileChange} />
+                                    </InputGroup>
+                                    <InputGroup label="Professional Title">
+                                        <StyledInput name="title" value={localData.profile.title} onChange={handleProfileChange} />
+                                    </InputGroup>
+                                    <InputGroup label="Biography">
+                                        <StyledTextArea name="about" value={localData.profile.about} onChange={handleProfileChange} rows={6} />
+                                    </InputGroup>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-1">Professional Title</label>
-                                    <input type="text" name="title" value={localData.profile.title} onChange={handleProfileChange} className="w-full bg-gray-700 border-gray-600 rounded p-2 text-white" />
+                                <div className="space-y-8">
+                                    <InputGroup label="Profile Picture">
+                                        <div className="flex items-center gap-6">
+                                            <div className="w-32 h-32 rounded-full border-4 border-gray-200 dark:border-gray-800 overflow-hidden shadow-xl bg-gray-100">
+                                                {localData.profile.profilePicture && <img src={localData.profile.profilePicture} className="w-full h-full object-cover" alt="Profile" />}
+                                            </div>
+                                            <input type="file" onChange={handleProfilePicChange} className="text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-gray-100 dark:file:bg-gray-800 file:text-gray-700 dark:file:text-white hover:file:bg-gray-200 dark:hover:file:bg-gray-700"/>
+                                        </div>
+                                    </InputGroup>
+                                    <InputGroup label="Social Presence">
+                                        <div className="space-y-3">
+                                            {localData.profile.socialLinks.map((link, idx) => (
+                                                <div key={link.id} className="flex gap-2">
+                                                    <StyledInput value={link.platform} onChange={(e) => handleSocialLinkChange(idx, 'platform', e.target.value)} className="w-1/3 text-sm" />
+                                                    <StyledInput value={link.url} onChange={(e) => handleSocialLinkChange(idx, 'url', e.target.value)} className="flex-1 text-sm text-gray-500" />
+                                                    <button onClick={() => handleRemoveSocialLink(link.id)} className="text-red-500 hover:text-red-700 px-2">&times;</button>
+                                                </div>
+                                            ))}
+                                            <button onClick={handleAddSocialLink} className="text-xs font-bold text-maroon-600 dark:text-gold uppercase tracking-wider mt-2">+ Add Link</button>
+                                        </div>
+                                    </InputGroup>
                                 </div>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-400 mb-1">About Me</label>
-                                <textarea name="about" value={localData.profile.about} onChange={handleProfileChange} rows={5} className="w-full bg-gray-700 border-gray-600 rounded p-2 text-white" />
-                            </div>
-                            <div className="grid grid-cols-2 gap-6">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-1">Profile Picture</label>
-                                    <input type="file" accept="image/*" onChange={handleProfilePicChange} className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-accent file:text-white hover:file:bg-highlight"/>
-                                    {localData.profile.profilePicture && <img src={localData.profile.profilePicture} alt="Profile" className="mt-4 h-32 w-32 rounded-full object-cover border-4 border-gray-600" />}
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-1">Promo Video</label>
-                                    <div className="flex gap-2 mb-2">
-                                        <input type="file" accept="video/*" onChange={handlePromoVideoChange} className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-accent file:text-white hover:file:bg-highlight"/>
-                                        <button onClick={handleGenerateVideo} disabled={isGeneratingVideo} className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm disabled:opacity-50">
-                                            {isGeneratingVideo ? 'Generating...' : 'Generate with AI'}
-                                        </button>
-                                    </div>
-                                    {generationStatus && <p className="text-xs text-purple-300 mb-2">{generationStatus}</p>}
-                                    {localData.profile.promoVideo && (
-                                        localData.profile.promoVideo.startsWith('data:video') ?
-                                        <video src={localData.profile.promoVideo} controls className="mt-2 h-32 w-auto rounded border border-gray-600" /> :
-                                        <div className="mt-2 text-sm text-gray-400">Video URL: {localData.profile.promoVideo}</div>
-                                    )}
-                                </div>
-                            </div>
-                            <div>
-                                <h3 className="text-lg font-semibold mb-3">Social Links</h3>
-                                {localData.profile.socialLinks.map((link, idx) => (
-                                    <div key={link.id} className="flex gap-4 mb-2">
-                                        <input type="text" value={link.platform} onChange={(e) => handleSocialLinkChange(idx, 'platform', e.target.value)} className="bg-gray-700 border-gray-600 rounded p-2 text-white w-1/3" placeholder="Platform" />
-                                        <input type="text" value={link.url} onChange={(e) => handleSocialLinkChange(idx, 'url', e.target.value)} className="bg-gray-700 border-gray-600 rounded p-2 text-white flex-1" placeholder="URL" />
-                                        <button onClick={() => handleRemoveSocialLink(link.id)} className="text-red-400 hover:text-red-300 px-2">&times;</button>
-                                    </div>
-                                ))}
-                                <button onClick={handleAddSocialLink} className="text-accent hover:text-white text-sm mt-2">+ Add Social Link</button>
                             </div>
                         </div>
                     )}
-
-                    {activeTab === 'Skills' && (
-                        <div>
-                            {localData.skills.map((skill, index) => (
-                                <div key={skill.id} className="flex gap-4 mb-4 bg-gray-800 p-4 rounded items-center">
-                                    <input type="text" value={skill.name} onChange={(e) => handleItemChange('skills', index, 'name', e.target.value)} className="bg-gray-700 border-gray-600 rounded p-2 text-white flex-1" />
-                                    <input type="number" min="0" max="100" value={skill.level} onChange={(e) => handleItemChange('skills', index, 'level', parseInt(e.target.value))} className="bg-gray-700 border-gray-600 rounded p-2 text-white w-20" />
-                                    <button onClick={() => handleRemoveItem('skills', skill.id)} className="bg-red-500/20 text-red-400 p-2 rounded hover:bg-red-500/30">Delete</button>
+                    
+                    {activeTab === 'Network' && (
+                        <div className="max-w-2xl animate-fade-in-up">
+                            <SectionHeader title="Community" subtitle="Manage group statistics" />
+                            <div className="bg-white dark:bg-zinc-900 p-8 rounded-sm shadow-lg border-t-4 border-gold">
+                                <div className="grid grid-cols-2 gap-8">
+                                    <InputGroup label="Member Count">
+                                        <StyledInput type="number" name="memberCount" value={localData.community?.memberCount || 0} onChange={handleCommunityChange} className="text-4xl font-mono text-maroon-700 dark:text-gold" />
+                                    </InputGroup>
+                                    <div className="flex items-end pb-4">
+                                        <span className="text-xs text-gray-400">Total registered members displayed on the frontend.</span>
+                                    </div>
                                 </div>
-                            ))}
-                            <button onClick={() => handleAddItem('skills')} className="bg-accent text-white px-4 py-2 rounded hover:bg-highlight">Add Skill</button>
+                                <div className="mt-6">
+                                    <InputGroup label="Community Description">
+                                        <StyledTextArea name="description" value={localData.community?.description || ''} onChange={handleCommunityChange} rows={3} />
+                                    </InputGroup>
+                                </div>
+                            </div>
                         </div>
                     )}
 
                     {activeTab === 'Projects' && (
-                        <div className="space-y-8">
-                            {localData.projects.map((project, index) => (
-                                <div key={project.id} className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-                                    <div className="flex justify-between mb-4">
-                                        <h3 className="text-lg font-bold text-accent">Project {index + 1}</h3>
-                                        <button onClick={() => handleRemoveItem('projects', project.id)} className="text-red-400 hover:text-red-300">Delete Project</button>
-                                    </div>
-                                    <div className="grid grid-cols-1 gap-4">
-                                        <input type="text" value={project.title} onChange={(e) => handleItemChange('projects', index, 'title', e.target.value)} placeholder="Project Title" className="bg-gray-700 border-gray-600 rounded p-2 text-white" />
-                                        <textarea value={project.description} onChange={(e) => handleItemChange('projects', index, 'description', e.target.value)} placeholder="Short Description" className="bg-gray-700 border-gray-600 rounded p-2 text-white" rows={2} />
-                                        <textarea value={project.longDescription} onChange={(e) => handleItemChange('projects', index, 'longDescription', e.target.value)} placeholder="Detailed Description (Markdown supported)" className="bg-gray-700 border-gray-600 rounded p-2 text-white" rows={4} />
-                                        <textarea value={project.keyLearning} onChange={(e) => handleItemChange('projects', index, 'keyLearning', e.target.value)} placeholder="Key Learning" className="bg-gray-700 border-gray-600 rounded p-2 text-white" rows={2} />
-                                        
-                                        <div>
-                                            <label className="block text-sm text-gray-400 mb-1">Technologies</label>
-                                            <TagInput tags={project.technologies} setTags={(newTags) => handleItemChange('projects', index, 'technologies', newTags)} />
-                                        </div>
-
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <input type="text" value={project.link || ''} onChange={(e) => handleItemChange('projects', index, 'link', e.target.value)} placeholder="Live Link URL" className="bg-gray-700 border-gray-600 rounded p-2 text-white" />
-                                            <input type="text" value={project.repoLink || ''} onChange={(e) => handleItemChange('projects', index, 'repoLink', e.target.value)} placeholder="Repository URL" className="bg-gray-700 border-gray-600 rounded p-2 text-white" />
-                                        </div>
-                                        <input type="text" value={project.videoUrl || ''} onChange={(e) => handleItemChange('projects', index, 'videoUrl', e.target.value)} placeholder="YouTube Video URL" className="bg-gray-700 border-gray-600 rounded p-2 text-white" />
-                                        
-                                        <div>
-                                            <label className="block text-sm text-gray-400 mb-2">Image Gallery (Auto-Compressed)</label>
-                                            <div className="flex flex-wrap gap-2 mb-2">
-                                                {project.imageGallery.map((img, i) => (
-                                                    <div key={i} className="relative w-24 h-24">
-                                                        <img src={img} alt="" className="w-full h-full object-cover rounded" />
-                                                        <button onClick={() => removeProjectGalleryImage(index, i)} className="absolute top-0 right-0 bg-red-600 text-white w-5 h-5 flex items-center justify-center rounded-full text-xs hover:bg-red-700">&times;</button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                            <input type="file" multiple accept="image/*" onChange={(e) => handleProjectGalleryChange(e, index)} className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-accent file:text-white hover:file:bg-highlight"/>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                            <button onClick={() => handleAddItem('projects')} className="bg-accent text-white px-4 py-2 rounded hover:bg-highlight">Add New Project</button>
-                        </div>
-                    )}
-
-                     {activeTab === 'Experience' && (
-                        <div>
-                             {localData.experience.map((exp, index) => (
-                                <div key={exp.id} className="bg-gray-800 p-6 rounded-lg border border-gray-700 mb-4">
-                                    <div className="grid grid-cols-2 gap-4 mb-2">
-                                        <input type="text" value={exp.role} onChange={(e) => handleItemChange('experience', index, 'role', e.target.value)} placeholder="Role" className="bg-gray-700 border-gray-600 rounded p-2 text-white" />
-                                        <input type="text" value={exp.organization} onChange={(e) => handleItemChange('experience', index, 'organization', e.target.value)} placeholder="Organization" className="bg-gray-700 border-gray-600 rounded p-2 text-white" />
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4 mb-2">
-                                        <input type="text" value={exp.startDate} onChange={(e) => handleItemChange('experience', index, 'startDate', e.target.value)} placeholder="Start Date" className="bg-gray-700 border-gray-600 rounded p-2 text-white" />
-                                        <input type="text" value={exp.endDate} onChange={(e) => handleItemChange('experience', index, 'endDate', e.target.value)} placeholder="End Date" className="bg-gray-700 border-gray-600 rounded p-2 text-white" />
-                                    </div>
-                                    <textarea value={exp.description} onChange={(e) => handleItemChange('experience', index, 'description', e.target.value)} placeholder="Description" className="w-full bg-gray-700 border-gray-600 rounded p-2 text-white mb-2" rows={3} />
-                                    <button onClick={() => handleRemoveItem('experience', exp.id)} className="text-red-400 hover:text-red-300 text-sm">Remove Entry</button>
-                                </div>
-                            ))}
-                            <button onClick={() => handleAddItem('experience')} className="bg-accent text-white px-4 py-2 rounded hover:bg-highlight">Add Experience</button>
-                        </div>
-                    )}
-
-                    {activeTab === 'Education' && (
-                        <div>
-                             {localData.education.map((edu, index) => (
-                                <div key={edu.id} className="bg-gray-800 p-6 rounded-lg border border-gray-700 mb-4">
-                                    <div className="grid grid-cols-2 gap-4 mb-2">
-                                        <input type="text" value={edu.degree} onChange={(e) => handleItemChange('education', index, 'degree', e.target.value)} placeholder="Degree" className="bg-gray-700 border-gray-600 rounded p-2 text-white" />
-                                        <input type="text" value={edu.institution} onChange={(e) => handleItemChange('education', index, 'institution', e.target.value)} placeholder="Institution" className="bg-gray-700 border-gray-600 rounded p-2 text-white" />
-                                    </div>
-                                    <div className="mb-2">
-                                        <input type="text" value={edu.period} onChange={(e) => handleItemChange('education', index, 'period', e.target.value)} placeholder="Period (e.g. 2020 - 2024)" className="w-full bg-gray-700 border-gray-600 rounded p-2 text-white" />
-                                    </div>
-                                    <textarea value={edu.details} onChange={(e) => handleItemChange('education', index, 'details', e.target.value)} placeholder="Details" className="w-full bg-gray-700 border-gray-600 rounded p-2 text-white mb-2" rows={2} />
-                                    <button onClick={() => handleRemoveItem('education', edu.id)} className="text-red-400 hover:text-red-300 text-sm">Remove Entry</button>
-                                </div>
-                            ))}
-                            <button onClick={() => handleAddItem('education')} className="bg-accent text-white px-4 py-2 rounded hover:bg-highlight">Add Education</button>
-                        </div>
-                    )}
-
-                     {activeTab === 'Memories' && (
-                        <div>
-                             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-                                {localData.memories.map((mem, index) => (
-                                    <div key={mem.id} className="relative group">
-                                        <img src={mem.image} alt="Memory" className="w-full h-40 object-cover rounded-lg" />
-                                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2 rounded-lg">
-                                            <button onClick={() => handleRemoveItem('memories', mem.id)} className="self-end text-red-400 font-bold">&times;</button>
-                                            <input type="text" value={mem.caption || ''} onChange={(e) => handleItemChange('memories', index, 'caption', e.target.value)} placeholder="Caption" className="bg-transparent border-b border-gray-400 text-white text-sm focus:outline-none" />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                            <label className="bg-accent text-white px-4 py-2 rounded cursor-pointer hover:bg-highlight">
-                                Upload Photos (Auto-Compressed)
-                                <input type="file" multiple accept="image/*" onChange={handleMemoryUpload} className="hidden" />
-                            </label>
-                        </div>
-                    )}
-
-                    {activeTab === 'Notes' && (
-                         <div className="space-y-6">
-                            <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-                                <h3 className="text-lg font-bold mb-4">Add New Resource</h3>
-                                <form onSubmit={handleAddNote} className="space-y-4">
-                                    <input type="text" placeholder="Title" value={newNote.title} onChange={e => setNewNote({...newNote, title: e.target.value})} className="w-full bg-gray-700 border-gray-600 rounded p-2 text-white" />
-                                    <textarea placeholder="Description" value={newNote.description} onChange={e => setNewNote({...newNote, description: e.target.value})} className="w-full bg-gray-700 border-gray-600 rounded p-2 text-white" rows={2}></textarea>
-                                    <input id="note-file-input" type="file" onChange={handleNoteFileChange} className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-accent file:text-white hover:file:bg-highlight"/>
-                                    <button type="submit" disabled={uploadingNote} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50">
-                                        {uploadingNote ? 'Uploading...' : 'Add Note'}
-                                    </button>
-                                </form>
-                            </div>
+                        <div className="space-y-12 animate-fade-in-up">
+                             <div className="flex justify-between items-end">
+                                <SectionHeader title="Portfolio" subtitle="Showcase your work" />
+                                <ActionButton onClick={() => handleAddItem('projects')}>+ Add Project</ActionButton>
+                             </div>
                             
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {localData.notes.map((note) => (
-                                    <div key={note.id} className="bg-gray-800 p-4 rounded border border-gray-700 flex justify-between items-start">
-                                        <div>
-                                            <h4 className="font-bold text-white">{note.title}</h4>
-                                            <p className="text-sm text-gray-400 mb-1">{note.fileName}</p>
-                                            <p className="text-xs text-gray-500">{note.description}</p>
-                                        </div>
-                                        <button onClick={() => handleRemoveItem('notes', note.id)} className="text-red-400 hover:text-red-300">&times;</button>
+                            {localData.projects.map((project, index) => (
+                                <div key={project.id} className="bg-white dark:bg-zinc-900 p-8 shadow-xl border-l-4 border-gray-200 dark:border-gray-800 hover:border-maroon-600 dark:hover:border-gold transition-colors duration-300">
+                                    <div className="flex justify-between mb-8">
+                                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">Case Study {index + 1}</h3>
+                                        <ActionButton variant="danger" onClick={() => handleRemoveItem('projects', project.id)}>Remove</ActionButton>
                                     </div>
-                                ))}
-                            </div>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
+                                        <InputGroup label="Title">
+                                            <StyledInput value={project.title} onChange={(e) => handleItemChange('projects', index, 'title', e.target.value)} />
+                                        </InputGroup>
+                                        <InputGroup label="Tech Stack (Press Enter)">
+                                            <TagInput tags={project.technologies} setTags={(newTags) => handleItemChange('projects', index, 'technologies', newTags)} className="bg-transparent border-b border-gray-300 dark:border-gray-700" />
+                                        </InputGroup>
+                                    </div>
+                                    
+                                    <InputGroup label="Short Description">
+                                        <StyledTextArea value={project.description} onChange={(e) => handleItemChange('projects', index, 'description', e.target.value)} rows={2} />
+                                    </InputGroup>
+                                    
+                                    <div className="mt-6">
+                                        <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Visual Assets</label>
+                                        <div className="flex flex-wrap gap-4 mb-4">
+                                            {project.imageGallery.map((img, i) => (
+                                                <div key={i} className="relative w-32 h-20 group">
+                                                    <img src={img} className="w-full h-full object-cover rounded-sm shadow-md opacity-70 group-hover:opacity-100 transition-opacity" />
+                                                    <button onClick={() => {
+                                                        const updated = project.imageGallery.filter((_, idx) => idx !== i);
+                                                        handleItemChange('projects', index, 'imageGallery', updated);
+                                                    }} className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity">&times;</button>
+                                                </div>
+                                            ))}
+                                            <label className="w-32 h-20 border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center cursor-pointer hover:border-maroon-600 dark:hover:border-gold transition-colors text-gray-400 hover:text-maroon-600 dark:hover:text-gold">
+                                                <span className="text-2xl">+</span>
+                                                <span className="text-[10px] uppercase font-bold">Add Image</span>
+                                                <input type="file" multiple accept="image/*" onChange={(e) => handleProjectGalleryChange(e, index)} className="hidden" />
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     )}
+                    
+                    {activeTab === 'Experience' && (
+                         <div className="max-w-4xl space-y-8 animate-fade-in-up">
+                            <div className="flex justify-between items-end">
+                                <SectionHeader title="Experience" subtitle="Career timeline" />
+                                <ActionButton onClick={() => handleAddItem('experience')}>+ Add Role</ActionButton>
+                            </div>
+                            {localData.experience.map((exp, index) => (
+                                <div key={exp.id} className="relative pl-8 border-l border-gray-300 dark:border-gray-700 py-2">
+                                    <div className="absolute left-[-5px] top-4 w-2 h-2 bg-gold rounded-full"></div>
+                                    <div className="bg-white dark:bg-zinc-900 p-6 shadow-md rounded-sm">
+                                         <div className="grid grid-cols-2 gap-4 mb-4">
+                                            <StyledInput value={exp.role} onChange={(e) => handleItemChange('experience', index, 'role', e.target.value)} placeholder="Role Title" className="font-bold" />
+                                            <StyledInput value={exp.organization} onChange={(e) => handleItemChange('experience', index, 'organization', e.target.value)} placeholder="Company" />
+                                        </div>
+                                        <div className="flex gap-4 mb-4 text-sm">
+                                            <StyledInput value={exp.startDate} onChange={(e) => handleItemChange('experience', index, 'startDate', e.target.value)} placeholder="Start Year" />
+                                            <StyledInput value={exp.endDate} onChange={(e) => handleItemChange('experience', index, 'endDate', e.target.value)} placeholder="End Year" />
+                                        </div>
+                                        <StyledTextArea value={exp.description} onChange={(e) => handleItemChange('experience', index, 'description', e.target.value)} placeholder="Achievements..." rows={3} />
+                                        <button onClick={() => handleRemoveItem('experience', exp.id)} className="text-xs text-red-500 mt-2 uppercase tracking-wider hover:underline">Remove Entry</button>
+                                    </div>
+                                </div>
+                            ))}
+                         </div>
+                    )}
+                    
+                    {/* Reusing similar minimalist styles for other tabs... */}
                     
                     {activeTab === 'Public Chat' && (
-                         <div className="space-y-4">
-                             {guestbookEntries.map(entry => (
-                                 <div key={entry.id} className={`p-4 rounded-lg border ${entry.userId === 'Admin' ? 'bg-blue-900/20 border-blue-800' : 'bg-gray-800 border-gray-700'}`}>
-                                     <div className="flex justify-between items-start mb-2">
-                                         <span className={`font-bold ${entry.userId === 'Admin' ? 'text-blue-400' : 'text-accent'}`}>{entry.userId}</span>
-                                         <span className="text-xs text-gray-500">{new Date(entry.timestamp).toLocaleString()}</span>
-                                     </div>
-                                     <p className="text-gray-300 whitespace-pre-wrap">{entry.message}</p>
-                                     <div className="mt-3 flex gap-2">
-                                         <button onClick={() => setAdminReply(`@${entry.userId} `)} className="text-xs text-gray-400 hover:text-white">Reply</button>
-                                         <button onClick={() => handleDeleteGuestbook(entry.id)} className="text-xs text-red-400 hover:text-red-300">Delete</button>
-                                     </div>
-                                 </div>
-                             ))}
-                             
-                             <div className="sticky bottom-0 bg-gray-800 p-4 border-t border-gray-700 mt-4 flex gap-2">
-                                 <input type="text" value={adminReply} onChange={(e) => setAdminReply(e.target.value)} placeholder="Type a reply..." className="flex-1 bg-gray-700 border-gray-600 rounded p-2 text-white" />
-                                 <button onClick={() => handleReplyToGuestbook(guestbookEntries[0])} className="bg-blue-600 px-4 py-2 rounded text-white hover:bg-blue-700">Send</button>
-                             </div>
-                         </div>
-                    )}
-
-                    {activeTab === 'Contact Leads' && (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="bg-gray-800 text-gray-400 border-b border-gray-700">
-                                        <th className="p-3">Date</th>
-                                        <th className="p-3">Name</th>
-                                        <th className="p-3">Email</th>
-                                        <th className="p-3">Message</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {leads.map(lead => (
-                                        <tr key={lead.id} className="border-b border-gray-700 hover:bg-gray-800/50">
-                                            <td className="p-3 text-sm text-gray-400">{new Date(lead.timestamp).toLocaleDateString()}</td>
-                                            <td className="p-3 text-white">{lead.name}</td>
-                                            <td className="p-3 text-accent">{lead.email}</td>
-                                            <td className="p-3 text-gray-300">{lead.message}</td>
-                                        </tr>
-                                    ))}
-                                    {leads.length === 0 && <tr><td colSpan={4} className="p-4 text-center text-gray-500">No leads yet.</td></tr>}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                    
-                    {activeTab === 'Moderation' && (
-                         <div className="space-y-4">
-                             {reports.length === 0 && <p className="text-gray-500 text-center">No reports filed.</p>}
-                             {reports.map(report => (
-                                 <div key={report.id} className="bg-red-900/10 border border-red-900/30 p-4 rounded-lg">
-                                     <h4 className="text-red-400 font-bold mb-1">Reported Message</h4>
-                                     <div className="bg-gray-900 p-3 rounded mb-3 text-sm">
-                                         <p className="text-gray-400 mb-1">Author: <span className="text-white">{report.messageAuthor}</span></p>
-                                         <p className="text-white italic">"{report.messageContent}"</p>
-                                     </div>
-                                     <div className="flex gap-3">
-                                         <button onClick={() => handleDeleteGuestbook(report.messageId)} className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700">Delete Message</button>
-                                         <button onClick={() => handleDeleteReport(report.id)} className="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700">Dismiss Report</button>
-                                     </div>
-                                 </div>
-                             ))}
-                         </div>
-                    )}
-
-                    {activeTab === 'User Management' && (
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-bold mb-4">Registered Users</h3>
-                            <div className="bg-gray-800 rounded-lg overflow-hidden">
-                                {users.map(user => (
-                                    <div key={user.id} className="p-4 border-b border-gray-700 flex justify-between items-center last:border-0">
-                                        <span className="text-white font-mono">{user.id}</span>
-                                        <button onClick={() => handleBanUser(user.id)} className="text-red-400 hover:text-red-300 text-sm border border-red-900/50 px-3 py-1 rounded hover:bg-red-900/20">Ban / Delete</button>
+                        <div className="max-w-3xl animate-fade-in-up">
+                            <SectionHeader title="Global Chat" subtitle="Public Guestbook Moderation" />
+                            <div className="space-y-4">
+                                {guestbookEntries.map(entry => (
+                                    <div key={entry.id} className="bg-white dark:bg-zinc-900 p-6 shadow-md border-l-4 border-gray-200 dark:border-gray-800">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-bold text-maroon-700 dark:text-gold">{entry.userId}</span>
+                                                <span className="text-xs text-gray-400">{new Date(entry.timestamp).toLocaleString()}</span>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                 <button onClick={() => handleDeleteGuestbook(entry.id)} className="text-xs text-red-500 hover:text-red-700 uppercase tracking-wider">Delete</button>
+                                            </div>
+                                        </div>
+                                        <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{entry.message}</p>
                                     </div>
                                 ))}
+                                {/* Admin Reply Box */}
+                                <div className="sticky bottom-0 bg-white dark:bg-zinc-950 p-4 border-t border-gray-200 dark:border-gray-800 shadow-xl flex gap-4 mt-8">
+                                    <input value={adminReply} onChange={(e) => setAdminReply(e.target.value)} placeholder="Broadcast reply as Admin..." className="flex-1 bg-gray-100 dark:bg-zinc-900 px-4 py-2 rounded-sm focus:outline-none" />
+                                    <ActionButton onClick={() => handleReplyToGuestbook(guestbookEntries[0])}>Send</ActionButton>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -892,7 +671,6 @@ const AdminView: React.FC = () => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
 
     useEffect(() => {
-        // If logged in user is Admin, they are authenticated
         if (currentUser && currentUser.id.toLowerCase() === ADMIN_USERNAME.toLowerCase()) {
             setIsAuthenticated(true);
         } else {
@@ -900,19 +678,12 @@ const AdminView: React.FC = () => {
         }
     }, [currentUser]);
 
-    const handleLoginSuccess = () => {
-        // Auth context handles session, local state just triggers re-render
-    };
-
     const handleLogout = () => {
-        // We need to call logout from useAuth.
-        // But since this is inside AdminDashboard which receives onLogout...
-        // We'll wrap it.
-        window.location.reload(); // Simple way to clear context/session for now.
+        window.location.reload(); 
     };
 
     if (!isAuthenticated) {
-        return <LoginForm onLogin={handleLoginSuccess} />;
+        return <LoginForm onLogin={() => {}} />;
     }
 
     return <AdminDashboard onLogout={handleLogout} />;

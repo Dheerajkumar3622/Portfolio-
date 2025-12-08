@@ -11,64 +11,53 @@ import SocialLinks from '../components/SocialLinks';
 import ScrollPulley from '../components/ScrollPulley';
 import TimelineItem from '../components/Timeline3D';
 import ProjectDetailModal from '../components/ProjectDetailModal';
+import BackToTopButton from '../components/BackToTopButton';
+import ProTipWidget from '../components/ProTipWidget';
 import type { Project } from '../types';
 
-// --- Parallax Card Component ---
-const ProjectCard: React.FC<{ project: Project; index: number; total: number; onOpen: (p:Project) => void }> = ({ project, index, total, onOpen }) => {
-    // Each card is sticky. We increase top offset per index to create stack effect.
-    const topOffset = 120 + index * 50; 
-    
+// --- Minimalist Project Card ---
+const ProjectCard: React.FC<{ project: Project; index: number; onOpen: (p:Project) => void }> = ({ project, index, onOpen }) => {
     return (
         <motion.div 
-            className="sticky mb-32 w-full max-w-5xl mx-auto rounded-xl overflow-hidden shadow-premium"
-            style={{ 
-                top: topOffset,
-                zIndex: index,
-            }}
-            initial={{ opacity: 0, y: 100, scale: 0.95 }}
-            whileInView={{ opacity: 1, y: 0, scale: 1 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
+            initial={{ opacity: 0, y: 50 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-50px" }}
+            transition={{ duration: 0.6, delay: index * 0.1 }}
+            className="group relative w-full mb-24 cursor-pointer"
+            onClick={() => onOpen(project)}
         >
-            <div className="relative h-[600px] flex flex-col md:flex-row group border border-maroon-900/30 dark:border-white/10 bg-luxury-black">
-                {/* Image Section */}
-                <div className="md:w-3/5 h-64 md:h-full relative overflow-hidden">
+            <div className="flex flex-col md:flex-row gap-12 items-center">
+                {/* 1. Visual Anchor (Image) */}
+                <div className="w-full md:w-3/5 aspect-video overflow-hidden rounded-sm shadow-2xl relative">
+                    <div className="absolute inset-0 bg-maroon-900/0 group-hover:bg-maroon-900/20 transition-colors duration-500 z-10 mix-blend-multiply"></div>
                     <SmartImage 
                         src={project.imageGallery[0]} 
                         alt={project.title} 
-                        className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110 filter grayscale group-hover:grayscale-0"
+                        className="w-full h-full object-cover transform transition-transform duration-1000 ease-out group-hover:scale-105"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-r from-luxury-black via-transparent to-transparent opacity-80 md:opacity-100"></div>
                 </div>
-                
-                {/* Content Section */}
-                <div className="md:w-2/5 p-10 flex flex-col justify-center bg-white dark:bg-zinc-900 md:bg-luxury-black/95 backdrop-blur-md relative overflow-hidden">
-                    {/* Decorative Maroon Line */}
-                    <div className="absolute top-0 left-0 w-1 h-full bg-maroon-700"></div>
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-maroon-700 to-transparent"></div>
 
-                    <h2 className="text-4xl font-display font-bold text-maroon-900 dark:text-white mb-2 uppercase tracking-widest">{project.title}</h2>
-                    <div className="w-16 h-0.5 bg-gold mb-6"></div>
+                {/* 2. Content Block */}
+                <div className="w-full md:w-2/5 flex flex-col justify-center">
+                    <span className="text-gold font-mono text-xs uppercase tracking-widest mb-4">Case Study 0{index + 1}</span>
+                    <h3 className="text-4xl font-display font-bold text-gray-900 dark:text-white mb-6 group-hover:text-maroon-600 dark:group-hover:text-maroon-500 transition-colors">
+                        {project.title}
+                    </h3>
+                    <p className="text-gray-600 dark:text-gray-400 font-light leading-relaxed mb-8 border-l-2 border-gray-300 dark:border-gray-800 pl-6 group-hover:border-gold transition-colors">
+                        {project.description}
+                    </p>
                     
-                    <p className="text-gray-600 dark:text-gray-400 mb-8 font-light leading-relaxed font-sans">{project.description}</p>
-                    
-                    <div className="flex flex-wrap gap-2 mb-8">
-                        {project.technologies.slice(0,4).map((t: string) => (
-                            <span key={t} className="px-3 py-1 border border-gold/30 text-gold text-xs font-serif uppercase tracking-wider rounded-sm">{t}</span>
-                        ))}
-                    </div>
-                    
-                    <div className="flex gap-4">
-                         <button 
-                            onClick={() => onOpen(project)}
-                            className="group relative px-8 py-3 bg-transparent overflow-hidden border border-maroon-700 text-maroon-700 dark:text-white dark:border-white transition-all hover:border-gold"
-                         >
-                            <span className="absolute inset-0 w-0 bg-maroon-700 transition-all duration-[250ms] ease-out group-hover:w-full"></span>
-                            <span className="relative text-sm font-bold uppercase tracking-widest group-hover:text-white">View Case Study</span>
-                         </button>
+                    <div className="flex flex-wrap gap-3">
+                         {project.technologies.slice(0, 3).map(tech => (
+                             <span key={tech} className="text-xs font-bold text-gray-600 dark:text-gray-500 bg-gray-200 dark:bg-gray-900 px-3 py-1 rounded-sm uppercase tracking-wide">
+                                 {tech}
+                             </span>
+                         ))}
                     </div>
                 </div>
             </div>
+            {/* Visual Separator */}
+            <div className="absolute -bottom-12 left-0 w-full h-px bg-gradient-to-r from-transparent via-gray-300 dark:via-gray-800 to-transparent"></div>
         </motion.div>
     );
 };
@@ -89,150 +78,144 @@ const UserView: React.FC = () => {
   };
 
   return (
-      <div className="bg-base-100 text-text-primary min-h-screen font-sans selection:bg-gold selection:text-black overflow-x-hidden transition-colors duration-700">
+      <div className="bg-gray-50 dark:bg-black text-gray-900 dark:text-white min-h-screen font-sans selection:bg-maroon-900 selection:text-white overflow-x-hidden transition-colors duration-500">
         
         <ScrollPulley />
+        <BackToTopButton />
 
-        {/* Theme Toggle - MOVED TO TOP LEFT */}
+        {/* Theme Toggle - Iconic Button */}
         <button 
             onClick={toggleTheme}
-            className="fixed top-6 left-6 z-[110] bg-white/10 backdrop-blur-md p-3 rounded-full border border-white/20 hover:border-gold hover:text-gold transition-all duration-300 text-xl shadow-lg"
+            className="fixed top-6 left-6 z-[110] w-12 h-12 rounded-full bg-white/10 dark:bg-white/5 backdrop-blur-md border border-gray-200 dark:border-white/10 shadow-xl flex items-center justify-center text-maroon-700 dark:text-gold hover:scale-110 transition-all duration-300"
             aria-label="Toggle Theme"
         >
-            {isDarkMode ? '☀️' : '🌙'}
+            {isDarkMode ? (
+                // Sun Icon
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
+                </svg>
+            ) : (
+                // Moon Icon
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.75 9.75 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" />
+                </svg>
+            )}
         </button>
 
-        {/* Hero Section */}
-        <section className="h-screen flex items-center justify-center relative overflow-hidden bg-black text-white">
-             {/* Dynamic Gradient Background - Maroon & Black */}
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,_rgba(128,0,0,0.3)_0%,_rgba(0,0,0,1)_80%)] animate-pulse-slow"></div>
-            
-            {/* Grid Overlay */}
-            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
+        {/* --- 1. HERO SECTION: Authority & Clarity --- */}
+        <section className="min-h-screen flex items-center relative px-6 md:px-20 overflow-hidden pt-28 pb-20 md:pt-0 md:pb-0">
+            {/* Added flex-col-reverse for Mobile Image Top, and lg:flex-row for Desktop Text Left / Image Right */}
+            <div className="container mx-auto flex flex-col-reverse lg:flex-row items-center justify-between z-10 gap-12 lg:gap-20">
+                
+                {/* Text Content */}
+                <div className="max-w-3xl flex-1 flex flex-col items-center lg:items-start text-center lg:text-left">
+                    <motion.div 
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.8 }}
+                    >
+                        <p className="text-gold font-mono text-sm tracking-[0.3em] uppercase mb-4">Portfolio of</p>
+                        <h1 className="text-6xl md:text-8xl lg:text-9xl font-display font-bold tracking-tighter text-gray-900 dark:text-white mb-8 leading-none">
+                            {profile.name.split(' ')[0]}<br/>
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-500 to-gray-800 dark:from-gray-500 dark:to-gray-200">{profile.name.split(' ')[1]}</span>.
+                        </h1>
+                    </motion.div>
 
-            <div className="z-10 text-center px-4 max-w-6xl relative">
-                {/* Decorative Elements */}
-                <motion.div 
-                    initial={{ height: 0 }} animate={{ height: 100 }} 
-                    className="absolute -top-32 left-1/2 w-px bg-gradient-to-b from-transparent to-gold"
-                ></motion.div>
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.5, duration: 0.8 }}
+                        className="flex flex-col md:flex-row items-center lg:items-start gap-8 max-w-2xl"
+                    >
+                        <div className="w-12 h-1 bg-maroon-600 mt-3 md:mt-6 hidden md:block"></div>
+                        <p className="text-lg md:text-xl text-gray-600 dark:text-gray-400 font-light leading-relaxed">
+                            {profile.title}. {profile.about}
+                        </p>
+                    </motion.div>
 
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 1 }}
+                        className="mt-12 flex gap-8 justify-center lg:justify-start"
+                    >
+                        <SocialLinks links={profile.socialLinks} />
+                    </motion.div>
+                </div>
+
+                {/* Profile Picture */}
                 <motion.div
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ duration: 1.5, ease: "anticipate" }}
-                    className="mb-8"
+                    initial={{ opacity: 0, scale: 0.8, rotate: -5 }}
+                    animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                    transition={{ duration: 1, ease: "easeOut" }}
+                    // Increased size boundaries and margin-right for desktop to clear Pulley
+                    className="relative w-64 h-64 md:w-80 md:h-80 lg:w-[28rem] lg:h-[28rem] flex-shrink-0 lg:mr-16"
                 >
-                     {profile.profilePicture && (
-                        <div className="w-48 h-48 mx-auto relative group">
-                            <div className="absolute inset-0 bg-maroon-600 rounded-full blur-xl opacity-40 group-hover:opacity-60 transition-opacity duration-500"></div>
-                            <img 
-                                src={profile.profilePicture} 
-                                alt={profile.name} 
-                                className="w-full h-full object-cover rounded-full border-2 border-white/10 relative z-10 grayscale hover:grayscale-0 transition-all duration-700" 
-                            />
-                        </div>
-                    )}
+                    <div className="absolute inset-0 rounded-full border border-gold/40 animate-pulse"></div>
+                    <div className="absolute -inset-4 rounded-full border border-maroon-900/20 dark:border-maroon-500/20"></div>
+                    <div className="absolute inset-0 rounded-full overflow-hidden shadow-2xl border-4 border-white dark:border-gray-900 bg-gray-200 dark:bg-gray-800">
+                        <SmartImage
+                            src={profile.profilePicture}
+                            alt={profile.name}
+                            className="w-full h-full object-cover"
+                            fallbackText={profile.name.charAt(0)}
+                        />
+                    </div>
                 </motion.div>
-
-                <motion.h1 
-                    initial={{ y: 50, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.3, duration: 1 }}
-                    className="text-6xl md:text-9xl font-display font-bold tracking-tight mb-2 bg-clip-text text-transparent bg-gradient-to-b from-white via-gray-200 to-gray-600 drop-shadow-lg"
-                >
-                    {profile.name}
-                </motion.h1>
-                
-                <motion.div 
-                    initial={{ width: 0 }} 
-                    animate={{ width: "100px" }} 
-                    transition={{ delay: 1, duration: 1 }}
-                    className="h-1 bg-maroon-600 mx-auto mb-6"
-                ></motion.div>
-
-                <motion.p 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.8 }}
-                    className="text-xl md:text-2xl text-gold font-serif italic tracking-wide"
-                >
-                    {profile.title}
-                </motion.p>
-                
-                 <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 1.5 }}
-                    className="mt-16"
-                 >
-                     <a href="#projects" className="text-xs font-bold tracking-[0.3em] uppercase text-white/50 hover:text-white border border-white/20 hover:border-white px-6 py-3 rounded-sm transition-all">
-                         Discover Portfolio
-                     </a>
-                 </motion.div>
             </div>
+            
+            {/* Subtle Abstract Background Element - "The Void" */}
+            <div className="absolute top-0 right-0 w-[50vw] h-full bg-gradient-to-l from-maroon-900/5 dark:from-maroon-900/10 to-transparent pointer-events-none"></div>
         </section>
 
-        {/* Community Section - Luxury Banner */}
-        <section className="py-20 bg-gradient-to-r from-black via-maroon-900 to-black border-y border-white/10 relative overflow-hidden">
-            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
-            <div className="container mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-12 relative z-10">
-                <div className="md:w-2/3">
-                    <h3 className="text-3xl font-display text-white mb-2">The <span className="text-gold">Network</span></h3>
-                    <p className="text-gray-400 font-light text-lg">{community?.description || "Join our network of elite engineers."}</p>
+        {/* --- 2. COMMUNITY: Social Proof (Psychology) --- */}
+        <section className="py-24 border-y border-gray-200 dark:border-white/5 bg-gray-100 dark:bg-gray-900/30">
+            <div className="container mx-auto px-6 md:px-20 flex flex-col md:flex-row items-center justify-between">
+                <div>
+                    <h3 className="text-2xl font-display font-bold text-gray-900 dark:text-white mb-2">The Network</h3>
+                    <p className="text-gray-500 max-w-md">{community?.description || "Join the elite circle of engineers."}</p>
                 </div>
-                <div className="md:w-1/3 flex items-center justify-end gap-6">
-                    <div className="text-right">
-                         <span className="block text-5xl font-display font-bold text-white">{community?.memberCount}</span>
-                         <span className="text-xs uppercase tracking-widest text-maroon-500 font-bold">Members Active</span>
+                <div className="mt-8 md:mt-0 flex items-center gap-8">
+                     <div className="text-right">
+                         <div className="text-5xl font-mono font-bold text-gray-900 dark:text-white">{community?.memberCount}</div>
+                         <div className="text-xs uppercase tracking-widest text-maroon-600 dark:text-maroon-500">Active Members</div>
                     </div>
                      <button 
                         onClick={handleJoin}
                         disabled={hasJoined}
-                        className={`h-16 w-16 rounded-full flex items-center justify-center border transition-all duration-500 ${hasJoined ? 'bg-green-900 border-green-700 text-white' : 'border-gold text-gold hover:bg-gold hover:text-black'}`}
+                        className={`px-8 py-3 text-sm font-bold uppercase tracking-widest border transition-all ${hasJoined ? 'border-green-600 text-green-600 cursor-default' : 'border-gold text-gold hover:bg-gold hover:text-black'}`}
                      >
-                         {hasJoined ? "✓" : "+"}
+                         {hasJoined ? "Member" : "Join"}
                      </button>
                 </div>
             </div>
         </section>
 
-        {/* Project Gallery - Dark & Sleek */}
-        <section className="py-32 px-4 bg-base-100 relative" id="projects">
-             {/* Subtle background text */}
-             <div className="absolute top-20 left-0 w-full text-center pointer-events-none opacity-[0.03] text-9xl font-display font-bold uppercase tracking-tighter">
-                 Portfolio
+        {/* --- 3. WORK: Focus & Quality --- */}
+        <section className="py-32 px-6 md:px-20 bg-white dark:bg-black transition-colors duration-500" id="projects">
+             <div className="mb-32">
+                <h2 className="text-sm font-mono text-gray-400 uppercase tracking-[0.2em] mb-4">Selected Works</h2>
+                <div className="h-px w-full bg-gray-200 dark:bg-gray-800"></div>
              </div>
 
-             <div className="container mx-auto mb-24 text-center">
-                <h2 className="text-5xl font-display font-bold mb-4 text-primary">Selected Works</h2>
-                <div className="w-24 h-1 bg-maroon-600 mx-auto"></div>
-             </div>
-
-             <div className="relative">
+             <div className="container mx-auto max-w-6xl">
                 {projects.map((project, i) => (
-                    <ProjectCard key={project.id} project={project} index={i} total={projects.length} onOpen={setSelectedProject} />
+                    <ProjectCard key={project.id} project={project} index={i} onOpen={setSelectedProject} />
                 ))}
              </div>
         </section>
 
-        {/* AI Gesture Slider */}
-        <section className="py-32 bg-secondary relative">
-             <div className="container mx-auto px-6">
-                 <div className="text-center mb-16">
-                     <h2 className="text-3xl font-display font-bold text-text-primary">Interactive Showcase</h2>
-                     <p className="text-gold italic font-serif">Control with gestures</p>
-                 </div>
+        {/* --- 4. INTERACTION: The Future --- */}
+        <section className="py-32 bg-gray-100 dark:bg-zinc-900/20 relative overflow-hidden transition-colors duration-500">
+             <div className="container mx-auto px-6 text-center">
+                 <h2 className="text-3xl font-display font-bold text-gray-900 dark:text-white mb-12">Interactive Gallery</h2>
                  <MLSlider 
                     items={projects} 
                     renderItem={(project) => (
-                        <div className="flex flex-col items-center justify-center h-full text-center relative z-10 group">
-                            <SmartImage src={project.imageGallery[0]} className="absolute inset-0 w-full h-full object-cover opacity-40 blur-sm group-hover:blur-0 transition-all duration-700" />
-                            <div className="absolute inset-0 bg-maroon-900/40 mix-blend-multiply"></div>
-                            <div className="relative z-20 border border-white/20 p-8 backdrop-blur-md bg-black/40 max-w-lg">
-                                <h3 className="text-4xl font-display font-bold text-white mb-2">{project.title}</h3>
-                                <div className="w-full h-px bg-gold/50 my-4"></div>
-                                <p className="text-gray-200 font-light">{project.description}</p>
+                        <div className="relative w-full h-full flex items-center justify-center">
+                            <SmartImage src={project.imageGallery[0]} className="absolute inset-0 w-full h-full object-cover opacity-30 blur-sm" />
+                            <div className="relative z-10 p-8 border border-white/20 bg-white/80 dark:bg-black/80 backdrop-blur-sm max-w-md shadow-2xl">
+                                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{project.title}</h3>
                             </div>
                         </div>
                     )}
@@ -240,105 +223,44 @@ const UserView: React.FC = () => {
              </div>
         </section>
 
-        {/* Professional Journey (3D Scrolling) */}
-        <section className="py-32 bg-luxury-black relative text-white" id="experience">
-            <div className="absolute inset-0 bg-gradient-to-b from-black via-maroon-900/10 to-black"></div>
-            <div className="container mx-auto px-6 relative z-10">
+        {/* --- 5. TIMELINE: Legacy --- */}
+        <section className="py-32 px-6 md:px-20 bg-white dark:bg-black relative transition-colors duration-500" id="experience">
+            <div className="container mx-auto max-w-5xl">
                  <div className="text-center mb-24">
-                    <h2 className="text-5xl font-display text-white mb-4">Timeline</h2>
-                    <p className="text-gold font-serif italic text-xl">Legacy & Education</p>
+                    <h2 className="text-4xl font-display text-gray-900 dark:text-white mb-2">Timeline</h2>
+                    <div className="w-12 h-1 bg-maroon-600 dark:bg-maroon-800 mx-auto"></div>
                  </div>
                  
-                 <div className="relative wrap overflow-hidden p-4 md:p-10 h-full">
-                    {/* Vertical Line - Gold */}
-                    <div className="absolute border-opacity-20 border-gold h-full border left-1/2 transform -translate-x-1/2 hidden md:block shadow-[0_0_15px_rgba(197,160,89,0.3)]"></div>
+                 <div className="space-y-4">
+                    <div className="text-center mb-12"><span className="text-gold font-mono text-sm uppercase">Professional Experience</span></div>
+                    {experience.map((exp, index) => (
+                        <TimelineItem key={exp.id} index={index} title={exp.role} subtitle={exp.organization} date={`${exp.startDate} - ${exp.endDate}`} description={exp.description} />
+                    ))}
                     
-                    {/* Experience Section */}
-                    <div className="mb-20">
-                        <div className="flex justify-center mb-12">
-                             <h3 className="text-2xl font-display text-gold border-b-2 border-gold pb-2 px-8 uppercase tracking-widest">Experience</h3>
-                        </div>
-                        {experience.map((exp, index) => (
-                            <TimelineItem 
-                                key={exp.id}
-                                index={index}
-                                title={exp.role}
-                                subtitle={exp.organization}
-                                date={`${exp.startDate} - ${exp.endDate}`}
-                                description={exp.description}
-                            />
-                        ))}
-                    </div>
-
-                    {/* Education Section */}
-                    <div>
-                         <div className="flex justify-center mb-12">
-                             <h3 className="text-2xl font-display text-gold border-b-2 border-gold pb-2 px-8 uppercase tracking-widest">Education</h3>
-                        </div>
-                         {education.map((edu, index) => (
-                            <TimelineItem 
-                                key={edu.id}
-                                index={experience.length + index} // Continue offset
-                                title={edu.degree}
-                                subtitle={edu.institution}
-                                date={edu.period}
-                                description={edu.details}
-                            />
-                        ))}
-                    </div>
+                    <div className="text-center my-12 pt-12"><span className="text-gold font-mono text-sm uppercase">Academic Background</span></div>
+                    {education.map((edu, index) => (
+                        <TimelineItem key={edu.id} index={index + 10} title={edu.degree} subtitle={edu.institution} date={edu.period} description={edu.details} />
+                    ))}
                  </div>
             </div>
         </section>
 
-        {/* About / Skills */}
-        <section className="py-32 bg-white dark:bg-black text-black dark:text-white relative z-20" id="about">
-            <div className="container mx-auto px-6 grid md:grid-cols-2 gap-20">
-                <div>
-                    <h2 className="text-6xl font-display font-bold mb-10 text-maroon-800 dark:text-white leading-none">
-                        About<br/>The<br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-maroon-600 to-gold">Architect</span>
-                    </h2>
-                    <p className="text-xl leading-loose text-gray-700 dark:text-gray-300 font-serif border-l-4 border-gold pl-6 mb-8">
-                        {profile.about}
-                    </p>
-                    <div className="mt-12">
-                        <SocialLinks links={profile.socialLinks} />
-                    </div>
-                </div>
-                <div>
-                    <h2 className="text-4xl font-display font-bold mb-10 border-b border-gray-200 dark:border-gray-800 pb-4">Technical Arsenal</h2>
-                    <div className="grid grid-cols-1 gap-6">
-                        {skills.map(s => (
-                            <div key={s.id} className="group relative">
-                                <div className="flex justify-between items-end mb-2">
-                                     <span className="font-bold text-lg font-display tracking-wide group-hover:text-maroon-600 transition-colors">{s.name}</span>
-                                     <span className="text-sm text-gray-400 font-mono">{s.level}%</span>
-                                </div>
-                                <div className="w-full h-1 bg-gray-200 dark:bg-gray-800">
-                                    <div className="h-full bg-maroon-600 group-hover:bg-gold transition-all duration-1000 ease-out" style={{ width: `${s.level}%` }}></div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        {/* Footer - Minimal Luxury */}
-        <footer className="bg-black text-white py-20 text-center border-t border-white/10">
-            <h2 className="text-3xl font-display font-bold mb-6">{profile.name}</h2>
-            <div className="flex justify-center space-x-8 mb-8 text-gray-500">
+        {/* --- 6. FOOTER: Minimalist --- */}
+        <footer className="bg-gray-100 dark:bg-zinc-950 py-24 border-t border-gray-200 dark:border-zinc-900 text-center transition-colors duration-500">
+            <h2 className="text-2xl font-display font-bold text-gray-900 dark:text-white mb-8">{profile.name}</h2>
+            <div className="flex justify-center gap-8 mb-8">
                 {profile.socialLinks.map(link => (
-                    <a key={link.id} href={link.url} className="hover:text-gold transition-colors text-sm uppercase tracking-widest">{link.platform}</a>
+                    <a key={link.id} href={link.url} className="text-gray-500 hover:text-maroon-600 dark:hover:text-white transition-colors text-sm uppercase tracking-wider">{link.platform}</a>
                 ))}
             </div>
-            <p className="text-gray-600 text-xs font-mono">
-                &copy; {new Date().getFullYear()} All Rights Reserved. <br/>
-                <a href="#/admin" className="hover:text-white transition mt-4 inline-block opacity-50">Admin Access</a>
+            <p className="text-gray-600 dark:text-gray-700 text-xs font-mono">
+                &copy; {new Date().getFullYear()} Designed by AI. <a href="#/admin" className="hover:text-gray-900 dark:hover:text-gray-500">Admin</a>
             </p>
         </footer>
 
-        {/* Floating Widgets */}
+        {/* Floating Widgets - Positioned Left to avoid Pulley */}
         <ChatWidget />
+        <ProTipWidget />
         <VoiceControl onNavigate={() => {}} />
         
         {/* Modals */}

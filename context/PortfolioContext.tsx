@@ -17,7 +17,46 @@ const defaultData: PortfolioData = {
     ]
   },
   education: [
-    { id: 'edu1', degree: 'B.E. in Electronics and Communication', institution: 'Government Engineering College, Aurangabad', period: '2020 - 2024', details: 'Specialized in Signal Processing and AI applications.' },
+    { 
+        id: 'edu1', 
+        degree: 'M.S. in Robotics & Autonomous Systems', 
+        institution: 'Stanford University', 
+        period: '2024 - 2026', 
+        details: 'Focusing on SLAM, Computer Vision, and Haptic Feedback systems. Thesis on "Swarm Intelligence in Resource-Constrained Environments".' 
+    },
+    { 
+        id: 'edu2', 
+        degree: 'B.E. in Electronics and Communication', 
+        institution: 'Government Engineering College, Aurangabad', 
+        period: '2020 - 2024', 
+        details: 'Graduated with Honors. Capstone project featured a custom-built FPGA accelerator for neural networks. Lead of the University Robotics Club.' 
+    },
+  ],
+  experience: [
+    { 
+        id: 'exp1', 
+        role: 'Senior AI Engineer', 
+        organization: 'Neural Edge Corp', 
+        startDate: '2024', 
+        endDate: 'Present', 
+        description: 'Leading a team of 5 engineers to deploy Vision Transformers on proprietary edge silicon. Improved inference speed by 400% using custom quantization kernels.' 
+    },
+    { 
+        id: 'exp2', 
+        role: 'Embedded Systems Intern', 
+        organization: 'Tesla Autopilot Team', 
+        startDate: '2023', 
+        endDate: '2023', 
+        description: 'Worked on the sensor fusion pipeline for FSD Beta. Optimized C++ driver code for radar modules, reducing latency by 12ms.' 
+    },
+    { 
+        id: 'exp3', 
+        role: 'Research Assistant', 
+        organization: 'IoT & Smart Cities Lab', 
+        startDate: '2022', 
+        endDate: '2023', 
+        description: 'Published paper on "Low-Power LoRaWAN Meshes" at IEEE IoT Conference. Designed prototype nodes for city-wide air quality monitoring.' 
+    },
   ],
   skills: [
     // --- 10 Major Futuristic ML Technologies ---
@@ -61,13 +100,14 @@ const defaultData: PortfolioData = {
       videoUrl: ''
     },
   ],
-  experience: [
-    { id: 'exp1', role: 'AI Researcher', organization: 'NextGen Robotics', startDate: '2023', endDate: 'Present', description: 'Developing Vision Transformers for autonomous navigation systems.' },
-  ],
   memories: [
     { id: 'mem1', image: 'https://picsum.photos/seed/robot/1200/800', caption: 'First successful autonomous flight' },
   ],
   notes: [],
+  community: {
+      memberCount: 142,
+      description: "Join the 'Neural Architects' group. A community of engineers pushing the boundaries of Edge AI."
+  }
 };
 
 // --- Context Definition ---
@@ -75,6 +115,7 @@ interface PortfolioContextType {
   portfolioData: PortfolioData;
   setPortfolioData: React.Dispatch<React.SetStateAction<PortfolioData>>;
   saveData: (dataToSave: PortfolioData) => Promise<void>;
+  joinCommunity: () => Promise<void>;
 }
 
 const PortfolioContext = createContext<PortfolioContextType | undefined>(undefined);
@@ -95,12 +136,12 @@ export const PortfolioProvider: React.FC<{ children: ReactNode }> = ({ children 
                   finalData[key] = savedData[key] as any;
               }
           }
+          // Ensure community object exists if loading from older data version
+          if (!finalData.community) {
+              finalData.community = defaultData.community;
+          }
           setPortfolioData(finalData);
         } else {
-           // Database is empty (first deployment). 
-           // Initialize it with default data so all devices see the same starting point.
-           // However, do NOT auto-save via the API here to avoid auth issues or overwriting.
-           // Just set local state. The admin must "Save" explicitly to push to DB.
            console.log("Database empty. Using default template.");
            setPortfolioData(defaultData);
         }
@@ -115,18 +156,34 @@ export const PortfolioProvider: React.FC<{ children: ReactNode }> = ({ children 
   const saveData = async (dataToSave: PortfolioData) => {
     try {
       await savePortfolio(dataToSave);
-      // We also update local state immediately for UI responsiveness
       setPortfolioData(dataToSave);
     } catch (error: any) {
       console.error('Error saving data via API:', error);
       alert(`CRITICAL ERROR: Failed to save to Database.\n\nReason: ${error.message}\n\nCheck your internet connection or try reducing image sizes.`);
-      // We throw again so the Admin View component knows to stop the loading spinner
       throw error; 
     }
   };
 
+  const joinCommunity = async () => {
+      const updatedData = {
+          ...portfolioData,
+          community: {
+              ...portfolioData.community,
+              memberCount: (portfolioData.community?.memberCount || 0) + 1
+          }
+      };
+      // Optimistically update UI
+      setPortfolioData(updatedData);
+      // Try to save silently
+      try {
+          await savePortfolio(updatedData);
+      } catch(e) {
+          console.warn("Failed to persist community count join");
+      }
+  }
+
   return (
-    <PortfolioContext.Provider value={{ portfolioData, setPortfolioData, saveData }}>
+    <PortfolioContext.Provider value={{ portfolioData, setPortfolioData, saveData, joinCommunity }}>
       {children}
     </PortfolioContext.Provider>
   );

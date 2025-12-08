@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -11,37 +12,39 @@
     </script>
     <style>
       :root {
-        /* Premium Light Mode */
-        --color-primary: #ffffff;
-        --color-secondary: #f4f4f5; /* Zinc 100 */
-        --color-accent: #2563eb;    /* Royal Blue */
-        --color-highlight: #0f172a; /* Slate 900 (High contrast) */
+        /* Luxury Light Mode */
+        --color-primary: #800000;   /* Maroon */
+        --color-secondary: #f8f5f5; /* Very light reddish grey */
+        --color-accent: #990000;    /* Brighter Maroon */
+        --color-gold: #c5a059;      /* Muted Gold */
+        --color-highlight: #1a1a1a; 
         --color-base-100: #ffffff;
-        --color-text-primary: #18181b; /* Zinc 900 */
-        --color-text-secondary: #52525b; /* Zinc 600 */
+        --color-text-primary: #0a0a0a;
+        --color-text-secondary: #4a4a4a;
         --color-cork-board: #f4f4f5;
         
-        --bg-gradient: radial-gradient(circle at 50% 0%, #f1f5f9 0%, #ffffff 100%);
+        --bg-gradient: linear-gradient(180deg, #ffffff 0%, #fcfafa 100%);
       }
 
       .dark {
-        /* Premium Dark Mode */
-        --color-primary: #09090b;       /* Zinc 950 */
-        --color-secondary: #18181b;     /* Zinc 900 */
-        --color-accent: #3b82f6;        /* Blue 500 */
-        --color-highlight: #f8fafc;     /* Slate 50 */
+        /* Premium Dark Mode - "Vampire Luxury" */
+        --color-primary: #ff0033;       /* Electric Red Accent */
+        --color-secondary: #080808;     /* Obsidian */
+        --color-accent: #800000;        /* Deep Maroon */
+        --color-gold: #ffd700;          /* Bright Gold */
+        --color-highlight: #ffffff;     
         --color-base-100: #000000;      /* Pure Black */
-        --color-text-primary: #f4f4f5;  /* Zinc 100 */
-        --color-text-secondary: #a1a1aa;/* Zinc 400 */
-        --color-cork-board: #18181b;
+        --color-text-primary: #f2f2f2;  
+        --color-text-secondary: #a3a3a3;
+        --color-cork-board: #0a0a0a;
 
-        --bg-gradient: radial-gradient(circle at 50% 0%, #1e293b 0%, #09090b 100%);
+        --bg-gradient: radial-gradient(circle at 50% -20%, #2b0505 0%, #000000 70%);
       }
 
       html {
         scroll-behavior: smooth;
-        font-family: 'Inter', system-ui, -apple-system, sans-serif;
-        overflow-x: hidden; /* Prevent horizontal scroll */
+        font-family: 'Playfair Display', serif; /* Switch to a premium serif for headers if available, else fallback */
+        overflow-x: hidden;
         width: 100%;
       }
       
@@ -49,29 +52,30 @@
         background: var(--bg-gradient);
         background-attachment: fixed;
         color: var(--color-text-primary);
-        transition: background 0.5s ease, color 0.5s ease;
-        overflow-x: hidden; /* Prevent horizontal scroll */
+        transition: background 0.8s ease, color 0.5s ease;
+        overflow-x: hidden;
         width: 100%;
         margin: 0;
         padding: 0;
       }
 
-      /* Custom Scrollbar for premium feel */
+      /* Hide Default Scrollbar to show Custom Pulley */
       ::-webkit-scrollbar {
-        width: 8px;
-      }
-      ::-webkit-scrollbar-track {
+        width: 0px; 
         background: transparent;
       }
-      ::-webkit-scrollbar-thumb {
-        background: var(--color-text-secondary);
-        border-radius: 4px;
-        opacity: 0.5;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: var(--color-accent);
+      
+      /* Premium Selection */
+      ::selection {
+        background: var(--color-gold);
+        color: black;
       }
     </style>
+    <!-- Import Google Fonts for Luxury Look -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@300;400;600&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -79,36 +83,52 @@
         theme: {
           extend: {
             fontFamily: {
-              sans: ['Inter', 'system-ui', 'sans-serif'],
+              sans: ['Inter', 'sans-serif'],
+              serif: ['Playfair Display', 'serif'],
+              display: ['Cinzel', 'serif'],
             },
             colors: {
               'primary': 'var(--color-primary)',
               'secondary': 'var(--color-secondary)',
               'accent': 'var(--color-accent)',
+              'gold': 'var(--color-gold)',
               'highlight': 'var(--color-highlight)',
               'base-100': 'var(--color-base-100)',
               'text-primary': 'var(--color-text-primary)',
               'text-secondary': 'var(--color-text-secondary)',
-              'cork-board': 'var(--color-cork-board)',
+              'maroon': {
+                900: '#2b0505',
+                800: '#4a0404',
+                700: '#800000',
+                600: '#990000',
+                500: '#b30000',
+              },
+              'luxury-black': '#050505',
             },
             animation: {
               'fade-in-up': 'fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards',
               'slide-in': 'slideIn 0.5s ease-out forwards',
-              'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'pulse-slow': 'pulse 6s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'shimmer': 'shimmer 3s linear infinite',
             },
             keyframes: {
               fadeInUp: {
-                '0%': { opacity: '0', transform: 'translateY(20px)' },
+                '0%': { opacity: '0', transform: 'translateY(40px)' },
                 '100%': { opacity: '1', transform: 'translateY(0)' },
               },
               slideIn: {
                 '0%': { transform: 'translateX(100%)' },
                 '100%': { transform: 'translateX(0)' },
               },
+              shimmer: {
+                '0%': { backgroundPosition: '-1000px 0' },
+                '100%': { backgroundPosition: '1000px 0' }
+              }
             },
             boxShadow: {
-              'premium': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-              'premium-hover': '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+              'premium': '0 10px 30px -10px rgba(0, 0, 0, 0.5)',
+              'glow': '0 0 20px rgba(128, 0, 0, 0.4)',
+              'gold': '0 0 15px rgba(197, 160, 89, 0.3)',
             }
           }
         }
@@ -138,7 +158,8 @@
     "path": "https://aistudiocdn.com/path@^0.12.7",
     "socket.io": "https://aistudiocdn.com/socket.io@^4.8.1",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
-    "react/": "https://aistudiocdn.com/react@^19.2.1/"
+    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "crypto": "https://aistudiocdn.com/crypto@^1.0.1"
   }
 }
 </script>

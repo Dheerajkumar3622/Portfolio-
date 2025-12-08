@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 
 const BackToTopButton: React.FC = () => {
@@ -29,7 +30,7 @@ const BackToTopButton: React.FC = () => {
             {isVisible && (
                 <button
                     onClick={scrollToTop}
-                    className="fixed bottom-28 right-8 bg-highlight/80 backdrop-blur-sm text-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-2xl z-40 transform hover:scale-110 hover:bg-highlight transition-all"
+                    className="fixed bottom-8 right-20 bg-highlight/80 backdrop-blur-sm text-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-2xl z-40 transform hover:scale-110 hover:bg-highlight transition-all"
                     aria-label="Go to top"
                 >
                     ↑

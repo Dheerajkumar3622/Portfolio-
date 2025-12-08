@@ -46,7 +46,7 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate }) => {
           setFeedback('Error. Try again.');
       }
     }
-  }, [isDarkMode]); // Re-bind if needed, but mainly purely functional
+  }, [isDarkMode]);
 
   const processCommand = (cmd: string) => {
     if (cmd.includes('home') || cmd.includes('top')) {
@@ -90,7 +90,7 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onNavigate }) => {
   if (!recognitionRef.current) return null;
 
   return (
-    <div className="fixed bottom-28 left-8 z-40 flex flex-col items-center">
+    <div className="fixed bottom-52 left-8 z-40 flex flex-col items-center">
        {/* Feedback Bubble */}
        {(isListening || transcript || feedback) && (
            <div className={`mb-4 px-4 py-2 rounded-xl backdrop-blur-md shadow-lg text-sm font-mono transition-all duration-300 ${

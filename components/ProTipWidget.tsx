@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 
 const tips = [
@@ -53,7 +54,7 @@ const ProTipWidget: React.FC = () => {
     const tip = tips[currentTipIndex];
 
     return (
-        <div className={`fixed bottom-8 left-8 w-72 bg-secondary/80 backdrop-blur-md border border-white/30 rounded-lg shadow-2xl z-40 transition-all duration-500 transform ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10'}`}>
+        <div className={`fixed bottom-24 left-6 w-72 bg-secondary/90 backdrop-blur-md border border-white/30 rounded-lg shadow-2xl z-40 transition-all duration-500 transform ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10'}`}>
             <button onClick={handleDismiss} className="absolute top-1 right-1 text-text-secondary hover:text-text-primary text-xl" aria-label="Dismiss tip">&times;</button>
             <div className="p-4">
                 <h4 className="font-bold text-accent mb-2 flex items-center">

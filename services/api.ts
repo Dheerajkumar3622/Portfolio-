@@ -168,6 +168,14 @@ export const updateGuestbook = async (id: string, updatedFields: Partial<Guestbo
     );
 };
 
+// --- Chat History API ---
+export const fetchChatHistory = async (): Promise<any[]> => {
+    return withFallback(
+        () => fetch(`${API_BASE}/chat/history`),
+        () => Promise.resolve([]) // Fallback to empty array if offline
+    );
+};
+
 // --- Leads API ---
 export const postLead = async (lead: Omit<Lead, 'id' | 'timestamp'>): Promise<void> => {
     return withFallback(

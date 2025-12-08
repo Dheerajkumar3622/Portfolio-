@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
 import { analyzeSentiment } from '../services/geminiService';
+import { fetchChatHistory } from '../services/api';
 
 const MESSAGE_MAX_LENGTH = 280;
 
@@ -58,9 +59,8 @@ const ChatWidget: React.FC = () => {
             setTimeout(() => setTypingUser(null), 2000);
         });
 
-        // Fetch history
-        fetch('/api/chat/history')
-            .then(res => res.json())
+        // Fetch history using robust service
+        fetchChatHistory()
             .then(data => {
                 if(Array.isArray(data)) {
                     setMessages(data);
@@ -109,13 +109,14 @@ const ChatWidget: React.FC = () => {
         <>
              <button 
                 onClick={() => setIsOpen(!isOpen)} 
-                className="fixed bottom-6 right-6 w-16 h-16 bg-black border border-accent/50 text-accent rounded-full shadow-[0_0_20px_rgba(37,99,235,0.4)] flex items-center justify-center text-2xl z-50 hover:scale-110 transition-transform"
+                className="fixed bottom-6 left-6 w-16 h-16 bg-black border border-accent/50 text-accent rounded-full shadow-[0_0_20px_rgba(37,99,235,0.4)] flex items-center justify-center text-2xl z-[100] hover:scale-110 transition-transform"
+                aria-label="Toggle Global Chat"
             >
                 {isOpen ? '✕' : '💬'}
             </button>
 
             {isOpen && (
-                <div className="fixed bottom-24 right-6 w-[90vw] md:w-96 h-[500px] bg-black/90 backdrop-blur-xl border border-accent/30 rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden font-mono">
+                <div className="fixed bottom-24 left-6 w-[90vw] md:w-96 h-[500px] bg-black/90 backdrop-blur-xl border border-accent/30 rounded-2xl shadow-2xl flex flex-col z-[100] overflow-hidden font-mono animate-fade-in-up">
                     {/* Header */}
                     <div className="bg-accent/10 p-4 border-b border-accent/20 flex justify-between items-center">
                         <div>

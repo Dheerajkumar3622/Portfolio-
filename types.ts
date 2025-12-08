@@ -1,3 +1,4 @@
+
 export interface Education {
   id: string;
   degree: string;
@@ -64,6 +65,11 @@ export interface Note {
   fileType: string;
 }
 
+export interface CommunityData {
+    memberCount: number;
+    description: string;
+}
+
 export interface PortfolioData {
   profile: ProfileData;
   education: Education[];
@@ -72,6 +78,7 @@ export interface PortfolioData {
   experience: Experience[];
   memories: Memory[];
   notes: Note[];
+  community: CommunityData;
 }
 
 // FIX: Add missing ChatMessage interface

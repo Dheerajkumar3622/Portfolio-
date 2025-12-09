@@ -84,10 +84,31 @@ export interface PortfolioData {
   community: CommunityData;
 }
 
-// For Chat Widget
+// --- Messaging System Types ---
+
+export interface ChatRoom {
+  id: string; // 'dm-user1-user2' or 'group-uuid'
+  name?: string; // For groups
+  type: 'dm' | 'group' | 'global';
+  participants: string[];
+  lastMessage?: ChatMessage;
+  unreadCount?: number;
+  updatedAt: number;
+  admins?: string[];
+}
+
 export interface ChatMessage {
-  role: 'user' | 'model';
-  text: string;
+  id: string;
+  roomId: string;
+  senderId: string;
+  message: string;
+  timestamp: number;
+  type: 'text' | 'image' | 'file';
+  mediaUrl?: string;
+  replyTo?: ChatMessage; // For contextual replies
+  reactions?: Record<string, string[]>; // emoji -> [userIds]
+  status?: 'sent' | 'delivered' | 'read';
+  readBy?: string[]; // Users who have read the message
 }
 
 // For Guestbook Widget

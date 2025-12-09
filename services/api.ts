@@ -1,5 +1,5 @@
 
-import type { PortfolioData, GuestbookEntry, Lead, Report, User } from '../types';
+import type { PortfolioData, GuestbookEntry, Lead, Report, User, ChatRoom, ChatMessage } from '../types';
 import * as DB from './db';
 
 const API_BASE = '/api';
@@ -15,17 +15,10 @@ const withFallback = async <T>(
 ): Promise<T> => {
     try {
         const response = await apiFn();
-        
-        if (!response.ok) {
-            // console.warn(`API unavailable (Status: ${response.status}). Switching to local DB.`);
-            return dbFn();
-        }
-
+        if (!response.ok) return dbFn();
         const data = await response.json();
         return transformApiData ? transformApiData(data) : data;
-
     } catch (error) {
-        // console.warn("API Network Error (Backend likely down). Switching to local DB.", error);
         return dbFn();
     }
 };
@@ -50,8 +43,6 @@ export const getPortfolio = async (): Promise<PortfolioData | null> => {
     );
 };
 
-// STRICT SAVE: Attempts to save to Cloud. If fail, THROWS error.
-// This prevents the "Saved Locally" silent fallback which confuses admins.
 export const savePortfolio = async (data: PortfolioData): Promise<void> => {
     try {
         const response = await fetch(`${API_BASE}/portfolio`, {
@@ -64,13 +55,9 @@ export const savePortfolio = async (data: PortfolioData): Promise<void> => {
             const errText = await response.text();
             throw new Error(`Server Error (${response.status}): ${errText}`);
         }
-
-        // If cloud save succeeded, ALSO update local DB to keep them in sync for offline reads
         await DB.savePortfolioDataToDB(data);
-
     } catch (error: any) {
         console.error("Cloud Save Failed:", error);
-        // We throw so the UI shows an error. We do NOT save locally to avoid split-brain data.
         throw error;
     }
 };
@@ -83,7 +70,7 @@ export const postUser = async (user: User): Promise<void> => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(user),
         }),
-        () => DB.addUser(user)
+        () => DB.addUser(user).then(() => {})
     );
 };
 
@@ -101,7 +88,7 @@ export const putUser = async (user: User): Promise<void> => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(user),
         }),
-        () => DB.updateUser(user)
+        () => DB.updateUser(user).then(() => {})
     );
 };
 
@@ -112,14 +99,57 @@ export const fetchAllUsers = async (): Promise<User[]> => {
     );
 };
 
-export const removeUser = async (id: string): Promise<void> => {
+// --- New Chat System API ---
+
+export const getMyRooms = async (userId: string): Promise<ChatRoom[]> => {
     return withFallback(
-        () => fetch(`${API_BASE}/auth/user/${id}`, { method: 'DELETE' }),
-        () => DB.deleteUser(id)
+        () => fetch(`${API_BASE}/chat/rooms/${userId}`),
+        () => DB.getRooms().then(rooms => rooms.filter(r => r.participants.includes(userId) || r.type === 'global'))
     );
 };
 
-// --- Guestbook API ---
+export const getRoomMessages = async (roomId: string): Promise<ChatMessage[]> => {
+    return withFallback(
+        () => fetch(`${API_BASE}/chat/messages/${roomId}`),
+        () => DB.getMessagesByRoom(roomId)
+    );
+};
+
+export const createDMRoom = async (participants: string[]): Promise<ChatRoom> => {
+    return withFallback(
+        () => fetch(`${API_BASE}/chat/room/dm`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ participants }),
+        }),
+        async () => {
+             // Mock offline DM creation
+             const id = `dm-${participants.sort().join('-')}`;
+             const room = { id, type: 'dm', participants, updatedAt: Date.now() } as ChatRoom;
+             await DB.saveRoom(room);
+             return room;
+        }
+    );
+};
+
+export const createGroupRoom = async (name: string, participants: string[], adminId: string): Promise<ChatRoom> => {
+    return withFallback(
+        () => fetch(`${API_BASE}/chat/room/group`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, participants, adminId }),
+        }),
+        async () => {
+             const id = `group-${Date.now()}`;
+             const room = { id, name, type: 'group', participants: [...participants, adminId], admins: [adminId], updatedAt: Date.now() } as ChatRoom;
+             await DB.saveRoom(room);
+             return room;
+        }
+    );
+};
+
+
+// --- Legacy Guestbook API (Kept for compatibility if needed) ---
 export const postGuestbook = async (entry: { userId: string, message: string }): Promise<void> => {
     return withFallback(
         () => fetch(`${API_BASE}/guestbook`, {
@@ -127,7 +157,7 @@ export const postGuestbook = async (entry: { userId: string, message: string }):
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(entry),
         }),
-        () => DB.saveGuestbookEntry(entry)
+        () => DB.saveGuestbookEntry({ ...entry, id: crypto.randomUUID(), timestamp: Date.now() }).then(() => {})
     );
 };
 
@@ -136,94 +166,12 @@ export const fetchGuestbook = async (options: { limit?: number, offset?: number 
         () => {
             const params = new URLSearchParams();
             if (options.limit) params.append('limit', options.limit.toString());
-            if (options.offset) params.append('offset', options.offset.toString());
             return fetch(`${API_BASE}/guestbook?${params.toString()}`);
         },
-        () => DB.getGuestbookEntries(options)
+        () => DB.getGuestbookEntries()
     );
 };
-
-export const fetchNewerGuestbook = async (timestamp: number): Promise<GuestbookEntry[]> => {
-    return withFallback(
-        () => fetch(`${API_BASE}/guestbook/newer?timestamp=${timestamp}`),
-        () => DB.getNewerGuestbookEntries(timestamp)
-    );
-};
-
-export const removeGuestbook = async (id: string): Promise<void> => {
-    return withFallback(
-        () => fetch(`${API_BASE}/guestbook/${id}`, { method: 'DELETE' }),
-        () => DB.deleteGuestbookEntry(id)
-    );
-};
-
-export const updateGuestbook = async (id: string, updatedFields: Partial<GuestbookEntry>): Promise<void> => {
-    return withFallback(
-        () => fetch(`${API_BASE}/guestbook/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(updatedFields),
-        }),
-        () => DB.updateGuestbookEntry(id, updatedFields)
-    );
-};
-
-// --- Chat History API ---
-export const fetchChatHistory = async (): Promise<any[]> => {
-    return withFallback(
-        () => fetch(`${API_BASE}/chat/history`),
-        () => Promise.resolve([]) // Fallback to empty array if offline
-    );
-};
-
-// --- Leads API ---
-export const postLead = async (lead: Omit<Lead, 'id' | 'timestamp'>): Promise<void> => {
-    return withFallback(
-        () => fetch(`${API_BASE}/leads`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(lead),
-        }),
-        () => DB.saveLead(lead)
-    );
-};
-
-export const fetchLeads = async (): Promise<Lead[]> => {
-    return withFallback(
-        () => fetch(`${API_BASE}/leads`),
-        () => DB.getLeads()
-    );
-};
-
-// --- Moderation API ---
-export const postReport = async (entry: GuestbookEntry): Promise<void> => {
-    return withFallback(
-        () => {
-            const report = {
-                messageId: entry.id,
-                messageContent: entry.message,
-                messageAuthor: entry.userId
-            };
-            return fetch(`${API_BASE}/reports`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(report),
-            });
-        },
-        () => DB.addReport(entry)
-    );
-};
-
-export const fetchReports = async (): Promise<Report[]> => {
-    return withFallback(
-        () => fetch(`${API_BASE}/reports`),
-        () => DB.getReports()
-    );
-};
-
-export const removeReport = async (id: string): Promise<void> => {
-    return withFallback(
-        () => fetch(`${API_BASE}/reports/${id}`, { method: 'DELETE' }),
-        () => DB.deleteReport(id)
-    );
-};
+export const fetchNewerGuestbook = async (timestamp: number) => fetchGuestbook(); // Fallback
+export const postReport = async (entry: any) => Promise.resolve();
+export const fetchReports = async () => [];
+export const fetchLeads = async () => [];

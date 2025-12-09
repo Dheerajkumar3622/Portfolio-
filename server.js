@@ -1,3 +1,4 @@
+
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
@@ -15,7 +16,7 @@ const httpServer = createServer(app); // Wrap Express in HTTP server for Socket.
 const io = new Server(httpServer, {
   cors: {
     origin: "*", // Allow connections from any origin (simplify dev/prod)
-    methods: ["GET", "POST"]
+    methods: ["GET", "POST", "PUT", "DELETE"]
   }
 });
 
@@ -62,14 +63,28 @@ const userSchema = new mongoose.Schema({
 });
 const UserModel = mongoose.model('User', userSchema);
 
-// Updated Chat Schema for Real-Time
+const roomSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  name: String,
+  type: { type: String, default: 'dm' }, // 'dm', 'group', 'global'
+  participants: [String],
+  updatedAt: Number,
+  admins: [String]
+});
+const RoomModel = mongoose.model('Room', roomSchema);
+
+// Updated Chat Schema for Full Features
 const chatSchema = new mongoose.Schema({
   id: String,
+  roomId: { type: String, required: true },
   senderId: String,
   message: String,
   timestamp: Number,
-  type: { type: String, default: 'public' }, // 'public' or 'private'
-  receiverId: String // For private messages
+  type: { type: String, default: 'text' }, // 'text', 'image', 'file'
+  mediaUrl: String, // Base64 or URL
+  replyTo: { type: Object, default: null }, // Snapshot of quoted message
+  reactions: { type: Map, of: [String], default: {} }, // emoji -> [userIds]
+  readBy: [String] // List of users who read it
 });
 const ChatModel = mongoose.model('Chat', chatSchema);
 
@@ -98,43 +113,89 @@ const portfolioSchema = new mongoose.Schema({
 const PortfolioModel = mongoose.model('Portfolio', portfolioSchema);
 
 // --- Real-Time Chat Logic (Socket.io) ---
+const onlineUsers = new Map(); // userId -> socketId
+
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
-  socket.on('join_chat', (userId) => {
-    socket.join('public'); // Everyone joins public channel
-    socket.join(userId);   // Join a private channel named after their ID
-    io.to('public').emit('user_status', { userId, status: 'online' });
+  socket.on('join_app', (userId) => {
+    onlineUsers.set(userId, socket.id);
+    io.emit('online_users', Array.from(onlineUsers.keys()));
+  });
+
+  socket.on('join_room', (roomId) => {
+    socket.join(roomId);
+  });
+
+  socket.on('leave_room', (roomId) => {
+    socket.leave(roomId);
+  });
+
+  socket.on('typing', ({ roomId, userId }) => {
+    socket.to(roomId).emit('user_typing', { roomId, userId });
   });
 
   socket.on('send_message', async (data) => {
-    // Save to DB
+    // data: { roomId, senderId, message, type, mediaUrl, replyTo, ... }
+    const msgData = {
+        ...data,
+        id: crypto.randomUUID(),
+        timestamp: Date.now(),
+        reactions: {},
+        readBy: [data.senderId]
+    };
+
     if (isDbConnected) {
       try {
-        const newMsg = new ChatModel({
-          id: crypto.randomUUID(),
-          senderId: data.senderId,
-          message: data.message,
-          timestamp: Date.now(),
-          type: 'public'
-        });
+        const newMsg = new ChatModel(msgData);
         await newMsg.save();
-        // Broadcast to everyone in public
-        io.to('public').emit('receive_message', newMsg);
+        
+        // Update Room's updatedAt
+        await RoomModel.findOneAndUpdate({ id: data.roomId }, { updatedAt: Date.now() });
+
+        io.to(data.roomId).emit('receive_message', newMsg);
       } catch (e) {
         console.error("Error saving chat:", e);
       }
     } else {
-        // Fallback for offline mode (just echo back)
-        io.to('public').emit('receive_message', { ...data, timestamp: Date.now(), id: crypto.randomUUID() });
+        // Fallback
+        io.to(data.roomId).emit('receive_message', msgData);
     }
   });
 
-  socket.on('typing', (data) => {
-    socket.broadcast.to('public').emit('user_typing', data.userId);
+  socket.on('mark_read', async ({ roomId, messageIds, userId }) => {
+      if (isDbConnected && messageIds.length > 0) {
+          await ChatModel.updateMany(
+              { id: { $in: messageIds } },
+              { $addToSet: { readBy: userId } }
+          );
+      }
+      io.to(roomId).emit('messages_read', { messageIds, userId });
+  });
+
+  socket.on('add_reaction', async ({ roomId, messageId, userId, emoji }) => {
+      if (isDbConnected) {
+          const msg = await ChatModel.findOne({ id: messageId });
+          if (msg) {
+             const current = msg.reactions.get(emoji) || [];
+             if (!current.includes(userId)) {
+                 current.push(userId);
+                 msg.reactions.set(emoji, current);
+                 await msg.save();
+                 io.to(roomId).emit('reaction_update', { messageId, reactions: msg.reactions });
+             }
+          }
+      }
   });
 
   socket.on('disconnect', () => {
+    for (const [uid, sid] of onlineUsers.entries()) {
+        if (sid === socket.id) {
+            onlineUsers.delete(uid);
+            break;
+        }
+    }
+    io.emit('online_users', Array.from(onlineUsers.keys()));
     console.log('User disconnected');
   });
 });
@@ -162,7 +223,7 @@ app.get('/api/health', (req, res) => {
     });
 });
 
-// Portfolio - Splitting Logic
+// Portfolio API
 app.get('/api/portfolio', async (req, res) => {
   if (!dbCheck(res)) return;
   try {
@@ -170,22 +231,18 @@ app.get('/api/portfolio', async (req, res) => {
     const results = await Promise.all(
         sections.map(sec => PortfolioModel.findOne({ identifier: `main_${sec}` }))
     );
-    
     const fullPortfolio = {};
     let foundAny = false;
-
     sections.forEach((sec, index) => {
         if (results[index]) {
             fullPortfolio[sec] = results[index].data;
             foundAny = true;
         }
     });
-    
     if (!foundAny) {
          const legacy = await PortfolioModel.findOne({ identifier: 'main' });
          if (legacy) return res.json(legacy.data);
     }
-
     res.json(fullPortfolio);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -197,7 +254,6 @@ app.post('/api/portfolio', async (req, res) => {
   try {
     const fullData = req.body;
     const sections = ['profile', 'education', 'skills', 'projects', 'experience', 'memories', 'notes'];
-    
     const operations = sections.map(section => {
         if (fullData[section]) {
             return PortfolioModel.findOneAndUpdate(
@@ -207,11 +263,9 @@ app.post('/api/portfolio', async (req, res) => {
             );
         }
     });
-    
     await Promise.all(operations);
     res.json({ success: true });
   } catch (error) {
-    console.error("Save Error:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -241,17 +295,98 @@ app.get('/api/auth/user/:id', async (req, res) => {
   }
 });
 
-// Chat History API (Load previous messages)
-app.get('/api/chat/history', async (req, res) => {
-  if (!dbCheck(res)) return;
-  try {
-    const limit = 50;
-    const messages = await ChatModel.find({ type: 'public' }).sort({ timestamp: -1 }).limit(limit);
-    res.json(messages.reverse()); // Oldest first for chat flow
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+app.get('/api/auth/users', async (req, res) => {
+    if (!dbCheck(res)) return;
+    try {
+        const users = await UserModel.find({}, 'id');
+        res.json(users);
+    } catch(e) { res.status(500).json({error: e.message})}
 });
+
+// --- Chat API ---
+
+// Create or Get DM Room
+app.post('/api/chat/room/dm', async (req, res) => {
+    if (!dbCheck(res)) return;
+    try {
+        const { participants } = req.body; // [id1, id2]
+        participants.sort();
+        const roomId = `dm-${participants.join('-')}`;
+        
+        let room = await RoomModel.findOne({ id: roomId });
+        if (!room) {
+            room = new RoomModel({
+                id: roomId,
+                type: 'dm',
+                participants: participants,
+                updatedAt: Date.now()
+            });
+            await room.save();
+        }
+        res.json(room);
+    } catch (e) { res.status(500).json({error: e.message})}
+});
+
+// Create Group
+app.post('/api/chat/room/group', async (req, res) => {
+    if (!dbCheck(res)) return;
+    try {
+        const { name, participants, adminId } = req.body;
+        const roomId = `group-${crypto.randomUUID()}`;
+        const room = new RoomModel({
+            id: roomId,
+            name,
+            type: 'group',
+            participants: [...participants, adminId],
+            admins: [adminId],
+            updatedAt: Date.now()
+        });
+        await room.save();
+        res.json(room);
+    } catch (e) { res.status(500).json({error: e.message})}
+});
+
+// Get User Rooms
+app.get('/api/chat/rooms/:userId', async (req, res) => {
+    if (!dbCheck(res)) return;
+    try {
+        const userId = req.params.userId;
+        // Find rooms where user is participant OR global room
+        const rooms = await RoomModel.find({ 
+            $or: [
+                { participants: userId },
+                { type: 'global' }
+            ] 
+        }).sort({ updatedAt: -1 });
+
+        // Ensure global exists
+        if (!rooms.some(r => r.id === 'global')) {
+            const global = new RoomModel({ id: 'global', name: 'Global Chat', type: 'global', participants: [], updatedAt: Date.now() });
+            await global.save();
+            rooms.unshift(global);
+        }
+
+        // Attach last message
+        const roomsWithMsg = await Promise.all(rooms.map(async (r) => {
+            const lastMsg = await ChatModel.findOne({ roomId: r.id }).sort({ timestamp: -1 });
+            return { ...r.toObject(), lastMessage: lastMsg };
+        }));
+
+        res.json(roomsWithMsg);
+    } catch (e) { res.status(500).json({error: e.message})}
+});
+
+// Get Messages
+app.get('/api/chat/messages/:roomId', async (req, res) => {
+    if (!dbCheck(res)) return;
+    try {
+        const { roomId } = req.params;
+        const limit = parseInt(req.query.limit) || 50;
+        const messages = await ChatModel.find({ roomId }).sort({ timestamp: -1 }).limit(limit);
+        res.json(messages.reverse());
+    } catch (e) { res.status(500).json({error: e.message})}
+});
+
 
 // Leads & Reports
 app.post('/api/leads', async (req, res) => {
@@ -273,11 +408,26 @@ app.get('/api/leads', async (req, res) => {
     } catch(e) { res.status(500).json({error: e.message}) }
 });
 
-// --- Static Files ---
-const distPath = path.join(process.cwd(), 'dist');
+app.post('/api/reports', async (req, res) => {
+    if (!dbCheck(res)) return;
+    try {
+        const report = new ReportModel({ ...req.body, id: crypto.randomUUID(), timestamp: Date.now() });
+        await report.save();
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
+app.get('/api/reports', async (req, res) => {
+    if (!dbCheck(res)) return;
+    try {
+        const reports = await ReportModel.find().sort({ timestamp: -1 });
+        res.json(reports);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Static Files
+const distPath = path.join(process.cwd(), 'dist');
 if (fs.existsSync(distPath)) {
-  console.log(`📂 Serving static files from: ${distPath}`);
   app.use(express.static(distPath));
 }
 
@@ -286,14 +436,10 @@ app.get('*', (req, res) => {
     return res.status(404).json({ error: 'API endpoint not found' });
   }
   const indexPath = path.join(distPath, 'index.html');
-  if (fs.existsSync(indexPath)) {
-      res.sendFile(indexPath);
-  } else {
-      res.status(404).send('Frontend application not found. Ensure build was successful.');
-  }
+  if (fs.existsSync(indexPath)) res.sendFile(indexPath);
+  else res.status(404).send('Frontend application not found.');
 });
 
-// Use httpServer.listen instead of app.listen for Socket.io
 httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });

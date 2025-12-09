@@ -24,13 +24,17 @@
         font-family: 'Inter', sans-serif;
         overflow-x: hidden;
         width: 100%;
-        /* Removed hardcoded background color to support Theme Context */
       }
       
       body {
         margin: 0;
         padding: 0;
         overflow-x: hidden;
+        background-color: #fcfcfc;
+      }
+      
+      .dark body {
+        background-color: #050505;
       }
 
       /* Hide Default Scrollbar */
@@ -60,6 +64,10 @@
               serif: ['Playfair Display', 'serif'],
               display: ['Cinzel', 'serif'],
             },
+            borderRadius: {
+              '4xl': '2rem',
+              '5xl': '2.5rem',
+            },
             colors: {
               'primary': '#000000',
               'secondary': '#111111',
@@ -75,11 +83,16 @@
             },
             animation: {
               'fade-in-up': 'fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+              'float': 'float 6s ease-in-out infinite',
             },
             keyframes: {
               fadeInUp: {
                 '0%': { opacity: '0', transform: 'translateY(20px)' },
                 '100%': { opacity: '1', transform: 'translateY(0)' },
+              },
+              float: {
+                '0%, 100%': { transform: 'translateY(0)' },
+                '50%': { transform: 'translateY(-10px)' },
               }
             }
           }

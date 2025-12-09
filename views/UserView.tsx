@@ -15,11 +15,10 @@ import ProTipWidget from '../components/ProTipWidget';
 import MemoriesSection from '../components/MemoriesSection';
 import SkillBar from '../components/SkillBar';
 import NavBar from '../components/NavBar';
-import GuestbookWidget from '../components/GuestbookWidget';
-import { PerspectiveWrapper } from '../components/PerspectiveWrapper'; // Import the wrapper
+import { PerspectiveWrapper } from '../components/PerspectiveWrapper'; 
 import type { Project } from '../types';
 
-// --- Minimalist Project Card ---
+// --- Rounded Project Card ---
 const ProjectCard: React.FC<{ project: Project; index: number; onOpen: (p:Project) => void }> = ({ project, index, onOpen }) => {
     return (
         <motion.div 
@@ -31,20 +30,23 @@ const ProjectCard: React.FC<{ project: Project; index: number; onOpen: (p:Projec
             onClick={() => onOpen(project)}
         >
             <div className="flex flex-col md:flex-row gap-12 items-center">
-                {/* 1. Visual Anchor (Image) */}
-                <div className="w-full md:w-3/5 aspect-video overflow-hidden rounded-sm shadow-xl relative">
+                {/* 1. Visual Anchor (Image) - Rounded squircle shape */}
+                <div className="w-full md:w-3/5 aspect-video overflow-hidden rounded-[2.5rem] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.25)] relative transition-transform duration-500 hover:scale-[1.02]">
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-500 z-10"></div>
                     <SmartImage 
                         src={project.imageGallery[0]} 
                         alt={project.title} 
-                        className="w-full h-full object-cover transform transition-transform duration-1000 ease-out group-hover:scale-105"
+                        className="w-full h-full object-cover transform transition-transform duration-1000 ease-out group-hover:scale-110"
                     />
                 </div>
 
                 {/* 2. Content Block */}
-                <div className="w-full md:w-2/5 flex flex-col justify-center text-left">
-                    <span className="text-gold font-mono text-xs uppercase tracking-widest mb-4">0{index + 1}</span>
-                    <h3 className="text-3xl font-display font-bold text-gray-900 dark:text-white mb-4 group-hover:text-maroon-600 dark:group-hover:text-gold transition-colors">
+                <div className="w-full md:w-2/5 flex flex-col justify-center text-left pl-4">
+                    <span className="text-gold font-mono text-xs uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <span className="w-8 h-[1px] bg-gold"></span>
+                        0{index + 1}
+                    </span>
+                    <h3 className="text-4xl font-display font-bold text-gray-900 dark:text-white mb-4 group-hover:text-maroon-600 dark:group-hover:text-gold transition-colors">
                         {project.title}
                     </h3>
                     <p className="text-gray-600 dark:text-gray-400 font-light leading-relaxed mb-6">
@@ -53,15 +55,13 @@ const ProjectCard: React.FC<{ project: Project; index: number; onOpen: (p:Projec
                     
                     <div className="flex flex-wrap gap-2">
                          {project.technologies.slice(0, 3).map(tech => (
-                             <span key={tech} className="text-[10px] font-bold text-gray-500 border border-gray-200 dark:border-gray-800 px-2 py-1 rounded-sm uppercase tracking-wide">
+                             <span key={tech} className="text-[10px] font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-white/10 px-4 py-2 rounded-full uppercase tracking-wide">
                                  {tech}
                              </span>
                          ))}
                     </div>
                 </div>
             </div>
-            {/* Minimal Separator */}
-            <div className="absolute -bottom-12 left-0 w-full h-px bg-gray-100 dark:bg-gray-900"></div>
         </motion.div>
     );
 };
@@ -70,7 +70,6 @@ const ProjectCard: React.FC<{ project: Project; index: number; onOpen: (p:Projec
 const UserView: React.FC = () => {
   const { portfolioData, joinCommunity } = usePortfolio();
   const { profile, projects, skills, education, experience, community, memories } = portfolioData;
-  // const { isDarkMode } = useTheme(); 
   
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [hasJoined, setHasJoined] = useState(false);
@@ -82,35 +81,42 @@ const UserView: React.FC = () => {
   };
 
   return (
-      <div className="bg-white dark:bg-black text-gray-900 dark:text-white min-h-screen font-sans selection:bg-maroon-900 selection:text-white overflow-x-hidden transition-colors duration-500">
+      <div className="bg-[#fcfcfc] dark:bg-[#050505] text-gray-900 dark:text-white min-h-screen font-sans selection:bg-maroon-900 selection:text-white overflow-x-hidden transition-colors duration-500 relative">
         
-        {/* --- FIXED ELEMENTS (Must be outside PerspectiveWrapper to stay fixed) --- */}
+        {/* --- Ambient Background Blobs --- */}
+        <div className="fixed top-[-20%] left-[-10%] w-[50vw] h-[50vw] bg-purple-900/10 dark:bg-purple-900/20 rounded-full blur-[150px] pointer-events-none z-0" />
+        <div className="fixed bottom-[-10%] right-[-10%] w-[40vw] h-[40vw] bg-gold/10 dark:bg-gold/10 rounded-full blur-[120px] pointer-events-none z-0" />
+
+        {/* --- FIXED ELEMENTS --- */}
         <NavBar />
         <ScrollPulley />
         <BackToTopButton />
         <ChatWidget />
         <ProTipWidget />
         <VoiceControl onNavigate={() => {}} />
-        <GuestbookWidget />
 
         {/* --- SCROLLABLE CONTENT WITH 3D ANIMATION --- */}
         <PerspectiveWrapper>
             {/* --- 1. HERO SECTION --- */}
-            <section className="min-h-screen flex items-center relative px-6 md:px-20 pt-32 pb-20 md:pt-20 md:pb-0">
-                <div className="container mx-auto flex flex-col-reverse lg:flex-row items-center justify-between z-10 gap-16">
+            <section className="min-h-screen flex items-center relative px-6 md:px-20 pt-40 pb-20 md:pt-28 md:pb-0 z-10">
+                <div className="container mx-auto flex flex-col-reverse lg:flex-row items-center justify-between gap-16">
                     
                     {/* Text Content */}
                     <div className="flex-1 flex flex-col items-center lg:items-start text-center lg:text-left max-w-3xl">
                         <motion.div 
-                            initial={{ opacity: 0, y: 20 }}
+                            initial={{ opacity: 0, y: 30 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.8 }}
                         >
-                            <h1 className="text-5xl md:text-7xl lg:text-8xl font-display font-bold tracking-tight text-gray-900 dark:text-white mb-6 leading-[0.9]">
+                            <span className="inline-block py-1 px-3 rounded-full bg-maroon-50 dark:bg-maroon-900/30 text-maroon-700 dark:text-maroon-200 text-xs font-bold tracking-widest mb-6 border border-maroon-100 dark:border-maroon-800">
+                                PORTFOLIO 2024
+                            </span>
+                            <h1 className="text-6xl md:text-8xl lg:text-9xl font-display font-bold tracking-tight text-gray-900 dark:text-white mb-8 leading-[0.85]">
                                 {profile.name}
                             </h1>
-                            <p className="text-lg md:text-xl text-gray-600 dark:text-gray-400 font-light leading-relaxed mb-8 max-w-2xl">
-                            {profile.title}. {profile.about}
+                            <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-400 font-light leading-relaxed mb-10 max-w-2xl">
+                                {profile.title}.<br/>
+                                <span className="opacity-70 text-base">{profile.about}</span>
                             </p>
                         </motion.div>
 
@@ -124,14 +130,17 @@ const UserView: React.FC = () => {
                         </motion.div>
                     </div>
 
-                    {/* Profile Picture */}
+                    {/* Profile Picture - Organic Shape */}
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 1 }}
+                        initial={{ opacity: 0, scale: 0.8, rotate: -5 }}
+                        animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                        transition={{ duration: 1.2, type: 'spring' }}
                         className="relative flex-shrink-0 lg:mr-16"
                     >
-                        <div className="w-56 h-56 md:w-80 md:h-80 lg:w-[30rem] lg:h-[30rem] rounded-full overflow-hidden shadow-2xl border border-gray-100 dark:border-gray-800">
+                        {/* Decorative ring */}
+                        <div className="absolute -inset-4 border border-gray-200 dark:border-gray-800 rounded-[3rem] rotate-6"></div>
+                        
+                        <div className="w-64 h-64 md:w-96 md:h-96 lg:w-[32rem] lg:h-[32rem] rounded-[2.5rem] overflow-hidden shadow-2xl relative z-10 hover:scale-[1.02] transition-transform duration-500">
                             <SmartImage
                                 src={profile.profilePicture}
                                 alt={profile.name}
@@ -143,37 +152,38 @@ const UserView: React.FC = () => {
                 </div>
             </section>
 
-            {/* --- 2. COMMUNITY (Simple Bar) --- */}
-            <section className="py-12 border-y border-gray-100 dark:border-gray-900">
-                <div className="container mx-auto px-6 md:px-20 flex flex-col md:flex-row items-center justify-between gap-6">
-                    <p className="text-gray-500 dark:text-gray-400 text-sm">{community?.description || "Join the network."}</p>
-                    <div className="flex items-center gap-6">
-                        <span className="font-mono text-gray-900 dark:text-white font-bold">{community?.memberCount} Members</span>
-                        <button 
-                            onClick={handleJoin}
-                            disabled={hasJoined}
-                            className={`text-xs font-bold uppercase tracking-widest px-6 py-3 border transition-all ${
-                                hasJoined 
-                                ? 'border-green-600 text-green-600' 
-                                : 'border-gray-900 dark:border-white text-gray-900 dark:text-white hover:bg-gray-900 hover:text-white dark:hover:bg-white dark:hover:text-black'
-                            }`}
-                        >
-                            {hasJoined ? "Joined" : "Join Group"}
-                        </button>
+            {/* --- 2. COMMUNITY (Pill) --- */}
+            <section className="py-12 z-10 relative">
+                <div className="container mx-auto px-6 md:px-20">
+                    <div className="bg-white/50 dark:bg-white/5 backdrop-blur-lg border border-gray-200 dark:border-white/10 rounded-full p-2 pl-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl">
+                         <p className="text-gray-600 dark:text-gray-300 text-sm font-medium">{community?.description || "Join the network."}</p>
+                         <div className="flex items-center gap-6 pr-2">
+                            <span className="font-mono text-gray-900 dark:text-white font-bold">{community?.memberCount} Members</span>
+                            <button 
+                                onClick={handleJoin}
+                                disabled={hasJoined}
+                                className={`text-xs font-bold uppercase tracking-widest px-8 py-4 rounded-full transition-all shadow-lg ${
+                                    hasJoined 
+                                    ? 'bg-green-100 text-green-700' 
+                                    : 'bg-black text-white dark:bg-white dark:text-black hover:scale-105'
+                                }`}
+                            >
+                                {hasJoined ? "Joined" : "Join Group"}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </section>
 
-            {/* --- 3. SKILLS (Technical Arsenal) --- */}
-            <section className="py-24 px-6 md:px-20 bg-gray-50 dark:bg-zinc-900/20 border-b border-gray-200 dark:border-gray-800" id="skills">
+            {/* --- 3. SKILLS --- */}
+            <section className="py-32 px-6 md:px-20 z-10 relative" id="skills">
                 <div className="container mx-auto max-w-6xl">
-                    <div className="mb-12 text-center lg:text-left">
-                        <h2 className="text-2xl md:text-3xl font-display font-bold text-gray-900 dark:text-white mb-2">Technical Arsenal</h2>
-                        <div className="h-1 w-16 bg-maroon-600 dark:bg-gold lg:mx-0 mx-auto"></div>
+                    <div className="mb-16 text-center lg:text-left">
+                        <h2 className="text-3xl md:text-5xl font-display font-bold text-gray-900 dark:text-white mb-4">Technical Arsenal</h2>
+                        <div className="h-1.5 w-24 bg-gold rounded-full lg:mx-0 mx-auto"></div>
                     </div>
 
-                    {/* Compact Grid Layout: 3 Columns on Large screens */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-16 gap-y-10">
                         {skills.map((skill) => (
                             <SkillBar key={skill.id} name={skill.name} level={skill.level} />
                         ))}
@@ -182,11 +192,11 @@ const UserView: React.FC = () => {
             </section>
 
             {/* --- 4. WORK --- */}
-            <section className="py-32 px-6 md:px-20" id="projects">
+            <section className="py-32 px-6 md:px-20 z-10 relative" id="projects">
                 <div className="container mx-auto max-w-6xl">
-                    <div className="mb-24 text-center">
-                        <h2 className="text-3xl font-display font-bold mb-4">Selected Works</h2>
-                        <p className="text-gray-500 font-light">A collection of engineering challenges.</p>
+                    <div className="mb-32 text-center">
+                        <span className="text-gold font-mono text-sm uppercase tracking-widest mb-2 block">Case Studies</span>
+                        <h2 className="text-5xl md:text-7xl font-display font-bold">Selected Works</h2>
                     </div>
                     {projects.map((project, i) => (
                         <ProjectCard key={project.id} project={project} index={i} onOpen={setSelectedProject} />
@@ -195,10 +205,10 @@ const UserView: React.FC = () => {
             </section>
 
             {/* --- 5. MEMORIES --- */}
-            <section className="py-32 bg-gray-50 dark:bg-zinc-900/30">
+            <section className="py-32 relative z-10">
                 <div className="container mx-auto px-6">
                     <div className="text-center mb-16">
-                        <h2 className="text-3xl font-display font-bold text-gray-900 dark:text-white mb-4">Memories</h2>
+                        <h2 className="text-4xl font-display font-bold text-gray-900 dark:text-white mb-4">Memories</h2>
                         <p className="text-gray-500 dark:text-gray-400">Captured moments from the journey.</p>
                     </div>
                     <MemoriesSection memories={memories} />
@@ -206,10 +216,10 @@ const UserView: React.FC = () => {
             </section>
 
             {/* --- 6. TIMELINE --- */}
-            <section className="py-32 px-6 md:px-20" id="experience">
+            <section className="py-32 px-6 md:px-20 relative z-10" id="experience">
                 <div className="container mx-auto max-w-5xl">
-                    <div className="mb-20 text-center">
-                        <h2 className="text-3xl font-display font-bold text-gray-900 dark:text-white">Experience</h2>
+                    <div className="mb-24 text-center">
+                        <h2 className="text-5xl font-display font-bold text-gray-900 dark:text-white">Experience</h2>
                     </div>
                     
                     <div className="space-y-4">
@@ -217,8 +227,10 @@ const UserView: React.FC = () => {
                             <TimelineItem key={exp.id} index={index} title={exp.role} subtitle={exp.organization} date={`${exp.startDate} - ${exp.endDate}`} description={exp.description} />
                         ))}
                         
-                        <div className="py-12 flex justify-center items-center">
-                            <div className="h-px bg-gray-200 dark:bg-gray-800 w-full max-w-xs"></div>
+                        <div className="py-16 flex justify-center items-center opacity-30">
+                            <div className="h-2 w-2 rounded-full bg-gray-500 mx-2"></div>
+                            <div className="h-2 w-2 rounded-full bg-gray-500 mx-2"></div>
+                            <div className="h-2 w-2 rounded-full bg-gray-500 mx-2"></div>
                         </div>
 
                         {education.map((edu, index) => (
@@ -229,15 +241,15 @@ const UserView: React.FC = () => {
             </section>
 
             {/* --- 7. FOOTER --- */}
-            <footer className="bg-white dark:bg-black py-24 border-t border-gray-100 dark:border-gray-900 text-center transition-colors duration-500">
-                <h2 className="text-2xl font-display font-bold text-gray-900 dark:text-white mb-8">{profile.name}</h2>
-                <div className="flex justify-center gap-8 mb-8">
+            <footer className="bg-gray-50 dark:bg-[#080808] py-32 text-center relative z-10 rounded-t-[3rem] mt-20">
+                <h2 className="text-4xl font-display font-bold text-gray-900 dark:text-white mb-8">{profile.name}</h2>
+                <div className="flex justify-center gap-8 mb-12">
                     {profile.socialLinks.map(link => (
                         <a key={link.id} href={link.url} className="text-gray-400 hover:text-black dark:hover:text-white transition-colors text-xs uppercase tracking-widest">{link.platform}</a>
                     ))}
                 </div>
                 <p className="text-gray-400 text-xs">
-                    &copy; {new Date().getFullYear()} <a href="#/admin" className="hover:text-gray-900 dark:hover:text-white">Admin Access</a>
+                    &copy; {new Date().getFullYear()} <a href="#/admin" className="hover:text-gray-900 dark:hover:text-white border-b border-transparent hover:border-gray-500 transition-colors">Admin Access</a>
                 </p>
             </footer>
         </PerspectiveWrapper>

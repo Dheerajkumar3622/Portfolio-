@@ -22,22 +22,24 @@ const TimelineItem: React.FC<TimelineItemProps> = ({ title, subtitle, date, desc
   const y = useTransform(scrollYProgress, [0, 0.2], [50, 0]);
 
   return (
-    <div className="w-full flex justify-center py-8"> 
+    <div className="w-full flex justify-center py-6"> 
       <motion.div 
         ref={ref}
         style={{ opacity, y }}
         className="w-full max-w-4xl"
       >
-          <div className="flex flex-col md:flex-row gap-6 md:gap-12 items-baseline border-b border-gray-300 dark:border-gray-900 pb-8 hover:border-maroon-600 dark:hover:border-maroon-900 transition-colors duration-500 group">
+          <div className="bg-white dark:bg-white/5 backdrop-blur-sm p-8 rounded-[2rem] border border-gray-100 dark:border-white/5 shadow-xl hover:shadow-2xl transition-shadow duration-300 flex flex-col md:flex-row gap-6 md:gap-10 items-start">
               {/* Date Column */}
-              <div className="w-full md:w-1/4 text-right">
-                  <span className="font-mono text-sm text-gray-500 block">{date}</span>
-                  <span className="text-xs text-maroon-600 dark:text-maroon-500 uppercase tracking-widest group-hover:text-gold transition-colors">{subtitle}</span>
+              <div className="w-full md:w-1/4 md:text-right pt-1">
+                  <div className="inline-block md:block bg-gray-100 dark:bg-white/10 px-4 py-1.5 rounded-full mb-2">
+                    <span className="font-mono text-xs font-bold text-gray-600 dark:text-gray-300">{date}</span>
+                  </div>
+                  <div className="text-xs font-bold text-maroon-600 dark:text-gold uppercase tracking-widest">{subtitle}</div>
               </div>
               
               {/* Content Column */}
-              <div className="w-full md:w-3/4">
-                  <h3 className="text-2xl font-display font-bold text-gray-900 dark:text-white mb-2">{title}</h3>
+              <div className="w-full md:w-3/4 border-l border-gray-200 dark:border-white/10 pl-6 md:pl-10">
+                  <h3 className="text-2xl font-display font-bold text-gray-900 dark:text-white mb-3">{title}</h3>
                   <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed max-w-2xl">
                       {description}
                   </p>

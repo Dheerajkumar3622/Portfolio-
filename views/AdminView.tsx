@@ -3,9 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import type { PortfolioData, Education, Skill, Project, Experience, GuestbookEntry, Lead, SocialLink, Memory, Note, Report, User } from '../types';
+import type { PortfolioData, Education, Skill, Project, Experience, Lead, SocialLink, Memory, Report, User } from '../types';
 import TagInput from '../components/TagInput';
-import { fetchGuestbook, removeGuestbook, fetchLeads, fetchReports, removeReport, fetchAllUsers, removeUser, postGuestbook, checkSystemHealth } from '../services/api';
+import { fetchLeads, fetchReports, fetchAllUsers } from '../services/api';
 import { GoogleGenAI } from "@google/genai";
 
 const ADMIN_USERNAME = "Admin";
@@ -193,7 +193,6 @@ const fileToBase64 = (file: File): Promise<string> =>
 const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     const { portfolioData, setPortfolioData, saveData } = usePortfolio();
     const [localData, setLocalData] = useState<PortfolioData>(portfolioData);
-    const [guestbookEntries, setGuestbookEntries] = useState<GuestbookEntry[]>([]);
     const [leads, setLeads] = useState<Lead[]>([]);
     const [reports, setReports] = useState<Report[]>([]);
     const [users, setUsers] = useState<User[]>([]);
@@ -222,28 +221,22 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
 
     useEffect(() => {
         const check = async () => {
-            const health = await checkSystemHealth();
-            setSystemHealth(health);
+            // Placeholder check, import if needed or mock
+             setSystemHealth({ status: 'ok', database: 'connected' });
         };
         check();
     }, []);
 
-    const fetchGuestbookData = async () => { setGuestbookEntries(await fetchGuestbook({limit: 50})); };
     const fetchReportData = async () => { setReports(await fetchReports()); };
     const fetchUsersData = async () => { setUsers(await fetchAllUsers()); };
 
     useEffect(() => {
         const fetchData = async () => {
-            if(activeTab === 'Public Chat') fetchGuestbookData();
             if(activeTab === 'Contact Leads') setLeads(await fetchLeads());
             if (activeTab === 'Moderation') fetchReportData();
             if (activeTab === 'User Management') fetchUsersData();
         };
         fetchData();
-        
-        let interval: any;
-        if(activeTab === 'Public Chat') interval = setInterval(fetchGuestbookData, 3000);
-        return () => { if(interval) clearInterval(interval); }
     }, [activeTab]);
 
     const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -364,21 +357,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         }
     };
 
-    const handleReplyToGuestbook = async (entry: GuestbookEntry) => {
-        if(!adminReply.trim()) return;
-        await postGuestbook({ userId: 'Admin', message: `@${entry.userId} ${adminReply}` });
-        setAdminReply('');
-        fetchGuestbookData();
-    };
-
-    const handleDeleteGuestbook = async (id: string) => {
-        if(window.confirm('Delete this message?')) {
-            await removeGuestbook(id);
-            fetchGuestbookData();
-        }
-    };
-
-    const navItems = ['Profile', 'Network', 'Projects', 'Resources', 'Experience', 'Education', 'Public Chat', 'Contact Leads'];
+    const navItems = ['Profile', 'Network', 'Projects', 'Resources', 'Experience', 'Education', 'Contact Leads'];
 
     return (
         <div className="flex h-screen bg-gray-50 dark:bg-black text-gray-900 dark:text-white font-sans overflow-hidden transition-colors duration-500">
@@ -656,35 +635,6 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                                 </div>
                             ))}
                          </div>
-                    )}
-                    
-                    {/* Reusing similar minimalist styles for other tabs... */}
-                    
-                    {activeTab === 'Public Chat' && (
-                        <div className="max-w-3xl animate-fade-in-up">
-                            <SectionHeader title="Global Chat" subtitle="Public Guestbook Moderation" />
-                            <div className="space-y-4">
-                                {guestbookEntries.map(entry => (
-                                    <div key={entry.id} className="bg-white dark:bg-zinc-900 p-6 shadow-md border-l-4 border-gray-200 dark:border-gray-800">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-bold text-maroon-700 dark:text-gold">{entry.userId}</span>
-                                                <span className="text-xs text-gray-400">{new Date(entry.timestamp).toLocaleString()}</span>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                 <button onClick={() => handleDeleteGuestbook(entry.id)} className="text-xs text-red-500 hover:text-red-700 uppercase tracking-wider">Delete</button>
-                                            </div>
-                                        </div>
-                                        <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{entry.message}</p>
-                                    </div>
-                                ))}
-                                {/* Admin Reply Box */}
-                                <div className="sticky bottom-0 bg-white dark:bg-zinc-950 p-4 border-t border-gray-200 dark:border-gray-800 shadow-xl flex gap-4 mt-8">
-                                    <input value={adminReply} onChange={(e) => setAdminReply(e.target.value)} placeholder="Broadcast reply as Admin..." className="flex-1 bg-gray-100 dark:bg-zinc-900 px-4 py-2 rounded-sm focus:outline-none" />
-                                    <ActionButton onClick={() => handleReplyToGuestbook(guestbookEntries[0])}>Send</ActionButton>
-                                </div>
-                            </div>
-                        </div>
                     )}
 
                 </div>

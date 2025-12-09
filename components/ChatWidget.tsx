@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
@@ -14,12 +15,11 @@ interface ChatMessage {
     type: string;
 }
 
-// Simple Markdown Parser
 const formatMessage = (text: string) => {
     const parts = text.split(/(`[^`]+`|\*\*[^*]+\*\*|_[^_]+_)/g);
     return parts.map((part, index) => {
         if (part.startsWith('`') && part.endsWith('`')) {
-            return <code key={index} className="bg-black/30 text-gold px-1 rounded font-mono text-xs">{part.slice(1, -1)}</code>;
+            return <code key={index} className="bg-black/30 text-gold px-2 py-0.5 rounded-md font-mono text-xs">{part.slice(1, -1)}</code>;
         }
         if (part.startsWith('**') && part.endsWith('**')) {
             return <strong key={index} className="font-bold text-white">{part.slice(2, -2)}</strong>;
@@ -31,7 +31,6 @@ const formatMessage = (text: string) => {
     });
 };
 
-// Sound Generator (No external assets needed)
 const playNotificationSound = () => {
     try {
         const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
@@ -42,7 +41,7 @@ const playNotificationSound = () => {
         osc.connect(gain);
         gain.connect(ctx.destination);
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(500, ctx.currentTime); // High pitch
+        osc.frequency.setValueAtTime(500, ctx.currentTime);
         gain.gain.setValueAtTime(0.1, ctx.currentTime);
         osc.start();
         gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.5);
@@ -61,7 +60,6 @@ const ChatWidget: React.FC = () => {
     const [unreadCount, setUnreadCount] = useState(0);
     const [soundEnabled, setSoundEnabled] = useState(true);
     
-    // Guest ID logic
     const [guestId] = useState(() => {
         const stored = localStorage.getItem('guest_id');
         if (stored) return stored;
@@ -77,9 +75,7 @@ const ChatWidget: React.FC = () => {
     const chatEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
 
-    // Initialize Socket
     useEffect(() => {
-        // Connect to server (relative path works because of Vite proxy)
         socketRef.current = io();
 
         socketRef.current.on('connect', () => {
@@ -103,7 +99,6 @@ const ChatWidget: React.FC = () => {
             }
         });
 
-        // Fetch history using robust service
         fetchChatHistory()
             .then(data => {
                 if(Array.isArray(data)) {
@@ -116,7 +111,7 @@ const ChatWidget: React.FC = () => {
         return () => {
             socketRef.current?.disconnect();
         };
-    }, [activeUser, isOpen, soundEnabled]); // Added dependencies
+    }, [activeUser, isOpen, soundEnabled]);
 
     useEffect(() => {
         if (isOpen) {
@@ -136,7 +131,6 @@ const ChatWidget: React.FC = () => {
         if (e) e.preventDefault();
         if (!input.trim() || !socketRef.current) return;
 
-        // AI Moderation check
         const sentiment = await analyzeSentiment(input);
         if (sentiment.label === 'TOXIC') {
             alert("Message blocked: Toxic content detected.");
@@ -152,7 +146,6 @@ const ChatWidget: React.FC = () => {
         socketRef.current.emit('send_message', msgData);
         setInput('');
         
-        // Reset height
         if (inputRef.current) {
             inputRef.current.style.height = 'auto';
         }
@@ -174,7 +167,6 @@ const ChatWidget: React.FC = () => {
         inputRef.current?.focus();
     };
 
-    // Group messages by date
     const groupedMessages = messages.reduce((groups, msg) => {
         const date = new Date(msg.timestamp).toLocaleDateString();
         if (!groups[date]) groups[date] = [];
@@ -186,7 +178,7 @@ const ChatWidget: React.FC = () => {
         <>
              <button 
                 onClick={() => setIsOpen(!isOpen)} 
-                className="fixed bottom-6 left-6 w-16 h-16 bg-black border border-gold/50 text-gold rounded-full shadow-[0_0_20px_rgba(197,160,89,0.3)] flex items-center justify-center text-2xl z-[100] hover:scale-110 transition-transform group"
+                className="fixed bottom-8 left-8 w-16 h-16 bg-black border border-gold/50 text-gold rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.5)] flex items-center justify-center text-2xl z-[100] hover:scale-110 transition-transform group"
                 aria-label="Toggle Global Chat"
             >
                 {isOpen ? (
@@ -195,7 +187,7 @@ const ChatWidget: React.FC = () => {
                     <div className="relative">
                         <span>💬</span>
                         {unreadCount > 0 && (
-                            <span className="absolute -top-3 -right-3 bg-red-600 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full animate-bounce shadow-sm">
+                            <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold w-6 h-6 flex items-center justify-center rounded-full animate-bounce shadow-md">
                                 {unreadCount > 9 ? '9+' : unreadCount}
                             </span>
                         )}
@@ -204,33 +196,41 @@ const ChatWidget: React.FC = () => {
             </button>
 
             {isOpen && (
-                <div className="fixed bottom-24 left-6 w-[90vw] md:w-[400px] h-[600px] max-h-[80vh] bg-black/90 backdrop-blur-xl border border-gold/30 rounded-2xl shadow-2xl flex flex-col z-[100] overflow-hidden font-sans animate-fade-in-up">
-                    {/* 1. Header with Status & Sound Toggle */}
-                    <div className="bg-gradient-to-r from-maroon-900 to-black p-4 border-b border-gold/20 flex justify-between items-center shadow-lg">
+                <div className="fixed bottom-28 left-8 w-[90vw] md:w-[400px] h-[650px] max-h-[75vh] bg-black/80 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] shadow-2xl flex flex-col z-[100] overflow-hidden font-sans animate-fade-in-up">
+                    {/* 1. Header */}
+                    <div className="bg-gradient-to-r from-gray-900 to-black p-5 border-b border-white/5 flex justify-between items-center">
                         <div>
-                            <h3 className="text-white font-bold text-lg tracking-widest font-display">GLOBAL_NET</h3>
+                            <h3 className="text-white font-bold text-lg tracking-wide font-display">GLOBAL_NET</h3>
                             <div className="flex items-center gap-2 text-xs text-gray-400 mt-1">
                                 <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
-                                {isConnected ? 'SECURE_CONNECTION' : 'RECONNECTING...'}
+                                {isConnected ? 'Online' : 'Reconnecting...'}
                             </div>
+                            {!currentUser && (
+                                <button 
+                                    onClick={() => window.dispatchEvent(new Event('open-auth-modal'))}
+                                    className="text-[10px] text-gold underline mt-1 hover:text-white"
+                                >
+                                    Login to claim ID
+                                </button>
+                            )}
                         </div>
                         <button 
                             onClick={() => setSoundEnabled(!soundEnabled)}
-                            className={`p-2 rounded-full ${soundEnabled ? 'text-gold' : 'text-gray-600'}`}
+                            className={`p-3 rounded-full bg-white/5 hover:bg-white/10 transition-colors ${soundEnabled ? 'text-gold' : 'text-gray-600'}`}
                             title={soundEnabled ? "Mute" : "Unmute"}
                         >
                             {soundEnabled ? '🔔' : '🔕'}
                         </button>
                     </div>
 
-                    {/* 2. Chat Area with Date Grouping */}
+                    {/* 2. Chat Area */}
                     <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-hide">
                         {Object.keys(groupedMessages).map((date) => {
                             const msgs = groupedMessages[date];
                             return (
                             <div key={date}>
-                                <div className="flex justify-center mb-4">
-                                    <span className="text-[10px] text-gray-500 bg-gray-900 px-3 py-1 rounded-full border border-gray-800">
+                                <div className="flex justify-center mb-6">
+                                    <span className="text-[10px] text-gray-400 bg-white/5 px-4 py-1.5 rounded-full backdrop-blur-sm">
                                         {date === new Date().toLocaleDateString() ? 'Today' : date}
                                     </span>
                                 </div>
@@ -240,19 +240,19 @@ const ChatWidget: React.FC = () => {
                                         const isAdmin = msg.senderId === 'Admin';
                                         return (
                                             <div key={idx} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} animate-fade-in-up`}>
-                                                <div className={`max-w-[85%] p-3 rounded-2xl text-sm shadow-md relative ${
+                                                <div className={`max-w-[85%] p-4 rounded-3xl text-sm shadow-sm relative ${
                                                     isMe 
-                                                    ? 'bg-gradient-to-br from-gold/90 to-gold/70 text-black rounded-tr-none' 
+                                                    ? 'bg-gradient-to-br from-gold to-yellow-600 text-black rounded-tr-sm' 
                                                     : isAdmin
-                                                        ? 'bg-maroon-900 border border-maroon-600 text-white'
-                                                        : 'bg-gray-800 border border-gray-700 text-gray-200 rounded-tl-none'
+                                                        ? 'bg-maroon-900 border border-maroon-600 text-white rounded-tl-sm'
+                                                        : 'bg-gray-800/80 border border-white/5 text-gray-200 rounded-tl-sm'
                                                 }`}>
                                                     {!isMe && <div className={`text-[10px] font-bold mb-1 opacity-70 ${isAdmin ? 'text-gold' : 'text-gray-400'}`}>{msg.senderId}</div>}
                                                     <div className="break-words leading-relaxed">
                                                         {formatMessage(msg.message)}
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-1 mt-1">
+                                                <div className="flex items-center gap-1 mt-1 px-2">
                                                     <span className="text-[10px] text-gray-600">
                                                         {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                                     </span>
@@ -267,7 +267,7 @@ const ChatWidget: React.FC = () => {
                         })}
                         
                         {typingUser && (
-                            <div className="flex items-center gap-2 text-xs text-gray-500 ml-2">
+                            <div className="flex items-center gap-2 text-xs text-gray-500 ml-4 mb-2">
                                 <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></span>
                                 <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce delay-100"></span>
                                 <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce delay-200"></span>
@@ -277,25 +277,22 @@ const ChatWidget: React.FC = () => {
                         <div ref={chatEndRef} />
                     </div>
 
-                    {/* 3. Footer with Emoji Bar & Auto-Expand Input */}
-                    <div className="p-3 border-t border-gold/20 bg-black/95">
-                        {/* Quick Emoji Bar */}
-                        <div className="flex gap-2 mb-2 overflow-x-auto pb-1 scrollbar-hide">
+                    {/* 3. Footer */}
+                    <div className="p-4 border-t border-white/5 bg-gray-900/50 backdrop-blur-md">
+                        {/* Emoji */}
+                        <div className="flex gap-2 mb-3 overflow-x-auto pb-1 scrollbar-hide">
                             {['👍', '🔥', '👋', '❤️', '😂', '🎉', '💻', '🤖'].map(emoji => (
                                 <button 
                                     key={emoji} 
                                     onClick={() => insertEmoji(emoji)}
-                                    className="hover:bg-gray-800 rounded p-1 text-lg transition-colors"
+                                    className="hover:bg-white/10 rounded-full p-2 text-lg transition-colors w-10 h-10 flex items-center justify-center"
                                 >
                                     {emoji}
                                 </button>
                             ))}
-                            <div className="text-[10px] text-gray-500 flex items-center ml-auto px-2">
-                                <span>**bold** `code`</span>
-                            </div>
                         </div>
 
-                        <div className="flex items-end gap-2">
+                        <div className="flex items-end gap-2 bg-black/50 p-1.5 rounded-[2rem] border border-white/10 focus-within:border-gold/50 transition-colors">
                             <textarea 
                                 ref={inputRef}
                                 value={input}
@@ -306,7 +303,7 @@ const ChatWidget: React.FC = () => {
                                     e.target.style.height = e.target.scrollHeight + 'px';
                                 }}
                                 onKeyDown={handleKeyDown}
-                                className="flex-1 bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:border-gold outline-none text-sm resize-none max-h-32 min-h-[44px]"
+                                className="flex-1 bg-transparent border-none rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:ring-0 text-sm resize-none max-h-32 min-h-[44px]"
                                 placeholder="Type a message..."
                                 rows={1}
                                 maxLength={MESSAGE_MAX_LENGTH}
@@ -314,7 +311,7 @@ const ChatWidget: React.FC = () => {
                             <button 
                                 onClick={() => handleSend()}
                                 disabled={!input.trim()}
-                                className="bg-gold text-black w-11 h-11 rounded-full font-bold hover:bg-white transition-colors flex items-center justify-center shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="bg-gold text-black w-10 h-10 rounded-full font-bold hover:bg-white transition-colors flex items-center justify-center shadow-lg disabled:opacity-50 disabled:cursor-not-allowed mb-0.5 mr-0.5"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 ml-0.5">
                                     <path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" />

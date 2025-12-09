@@ -52,57 +52,46 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose }) => {
 
     return (
         <div 
-            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in-up"
+            className="fixed inset-0 bg-black/60 backdrop-blur-md z-[110] flex items-center justify-center p-4 animate-fade-in-up"
             onClick={onClose}
         >
             <div 
-                className="bg-gray-800/70 backdrop-blur-md border border-slate-500/50 rounded-lg shadow-xl w-full max-w-sm text-white" 
+                className="bg-white dark:bg-gray-900 rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden border border-white/20" 
                 onClick={(e) => e.stopPropagation()}
             >
-                <header className="p-4 border-b border-slate-500/50 flex justify-between items-center">
-                    <h2 className="text-xl font-bold text-white">User Profile</h2>
-                    <button onClick={onClose} className="text-slate-300 hover:text-white text-3xl font-bold" aria-label="Close profile">&times;</button>
+                <header className="p-6 border-b border-gray-100 dark:border-white/5 flex justify-between items-center">
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white pl-2">Profile Settings</h2>
+                    <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 transition-colors flex items-center justify-center text-gray-500" aria-label="Close profile">&times;</button>
                 </header>
                 
                 <div className="p-8">
                     <form onSubmit={handleSubmit} className="space-y-6">
-                        <div className="text-center mb-6">
-                            <span className="block text-xs text-gray-400 uppercase tracking-widest">Logged in as</span>
-                            <span className="block text-xl font-display font-bold text-accent mt-1">{currentUser?.id}</span>
+                        <div className="text-center mb-8">
+                            <div className="w-20 h-20 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-800 dark:to-black rounded-full mx-auto flex items-center justify-center shadow-inner mb-3">
+                                <span className="text-3xl font-bold text-gray-500 dark:text-gray-400">{currentUser?.id.charAt(0)}</span>
+                            </div>
+                            <span className="block text-xl font-display font-bold text-gray-900 dark:text-white">{currentUser?.id}</span>
                         </div>
 
-                        <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wide border-b border-gray-600 pb-2">Security Settings</h3>
-                        {message.text && <p className={`${message.type === 'error' ? 'bg-red-500/20 text-red-300' : 'bg-green-500/20 text-green-300'} p-3 rounded-md text-center text-sm`}>{message.text}</p>}
+                        {message.text && <p className={`${message.type === 'error' ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-600'} p-3 rounded-2xl text-center text-xs font-bold`}>{message.text}</p>}
                         
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">Current Password</label>
-                            <input type="password" value={oldPassword} onChange={e => setOldPassword(e.target.value)} required className="w-full bg-gray-700/80 border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-accent" />
+                        <div className="space-y-4">
+                            <input type="password" value={oldPassword} onChange={e => setOldPassword(e.target.value)} required placeholder="Current Password" className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl px-5 py-4 text-gray-900 dark:text-white focus:ring-2 focus:ring-gold outline-none transition-all placeholder-gray-400" />
+                            <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} required placeholder="New Password" className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl px-5 py-4 text-gray-900 dark:text-white focus:ring-2 focus:ring-gold outline-none transition-all placeholder-gray-400" />
+                            <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required placeholder="Confirm New Password" className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl px-5 py-4 text-gray-900 dark:text-white focus:ring-2 focus:ring-gold outline-none transition-all placeholder-gray-400" />
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">New Password</label>
-                            <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} required className="w-full bg-gray-700/80 border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-accent" />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">Confirm New Password</label>
-                            <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required className="w-full bg-gray-700/80 border-gray-600 rounded-md p-3 text-white focus:ring-2 focus:ring-accent" />
-                        </div>
-
-                        <button type="submit" disabled={isLoading} className="w-full bg-accent text-white font-bold py-3 rounded-md hover:bg-highlight transition-colors disabled:bg-gray-500">
+                        <button type="submit" disabled={isLoading} className="w-full bg-black dark:bg-white text-white dark:text-black font-bold py-4 rounded-2xl hover:scale-[1.02] transition-transform disabled:opacity-50 shadow-lg">
                             {isLoading ? 'Updating...' : 'Update Password'}
                         </button>
                     </form>
 
-                    <div className="mt-8 pt-6 border-t border-gray-700">
+                    <div className="mt-8 pt-6 border-t border-gray-100 dark:border-white/5">
                         <button 
                             type="button" 
                             onClick={handleLogout} 
-                            className="w-full bg-red-900/20 border border-red-500/30 text-red-400 hover:text-red-300 hover:bg-red-900/40 py-3 rounded-md text-xs font-bold uppercase tracking-widest transition-colors flex items-center justify-center gap-2"
+                            className="w-full text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 py-3 rounded-2xl text-xs font-bold uppercase tracking-widest transition-colors"
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                            </svg>
                             Log Out
                         </button>
                     </div>

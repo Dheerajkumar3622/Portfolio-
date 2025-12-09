@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import HamburgerMenu from './HamburgerMenu';
 import { usePortfolio } from '../context/PortfolioContext';
@@ -17,14 +17,20 @@ const NavBar: React.FC = () => {
     const [isAuthOpen, setIsAuthOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
 
+    useEffect(() => {
+        const handleOpenAuth = () => setIsAuthOpen(true);
+        window.addEventListener('open-auth-modal', handleOpenAuth);
+        return () => window.removeEventListener('open-auth-modal', handleOpenAuth);
+    }, []);
+
     return (
         <>
-            <nav className="fixed top-0 left-0 w-full z-[100] bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 transition-colors duration-300">
-                <div className="container mx-auto px-6 h-16 flex items-center justify-between">
+            <nav className="fixed top-6 left-0 right-0 z-[100] flex justify-center px-4 pointer-events-none">
+                <div className="w-full max-w-6xl pointer-events-auto bg-white/70 dark:bg-black/70 backdrop-blur-2xl border border-white/20 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.12)] rounded-full px-6 py-3 flex items-center justify-between transition-all duration-300">
                     
                     {/* Brand */}
                     <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-maroon-900 text-gold flex items-center justify-center font-display font-bold text-lg rounded-sm">
+                        <div className="w-10 h-10 bg-gradient-to-br from-maroon-900 to-maroon-700 text-gold flex items-center justify-center font-display font-bold text-lg rounded-full shadow-lg">
                             {portfolioData.profile.name.charAt(0)}
                         </div>
                         <span className="font-display font-bold text-gray-900 dark:text-white tracking-widest text-sm hidden md:block">
@@ -33,13 +39,13 @@ const NavBar: React.FC = () => {
                     </div>
 
                     {/* Right Controls */}
-                    <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-4">
                         
                         {/* Auth Section */}
                         {currentUser ? (
                             <button 
                                 onClick={() => setIsProfileOpen(true)}
-                                className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white hover:text-maroon-600 dark:hover:text-gold transition-colors flex items-center gap-2 group"
+                                className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white hover:text-maroon-600 dark:hover:text-gold transition-colors flex items-center gap-2 group bg-gray-100 dark:bg-white/5 px-4 py-2 rounded-full border border-transparent hover:border-gold/30"
                             >
                                 <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] group-hover:animate-pulse"></span>
                                 <span className="truncate max-w-[100px]">{currentUser.id}</span>
@@ -47,16 +53,16 @@ const NavBar: React.FC = () => {
                         ) : (
                             <button 
                                 onClick={() => setIsAuthOpen(true)}
-                                className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white hover:text-maroon-600 dark:hover:text-gold transition-colors border border-gray-300 dark:border-gray-700 px-4 py-2 rounded-sm hover:border-maroon-600 dark:hover:border-gold"
+                                className="text-xs font-bold uppercase tracking-wider text-white bg-black dark:bg-white dark:text-black hover:scale-105 transition-all px-5 py-2.5 rounded-full shadow-lg"
                             >
-                                Login / Sign Up
+                                Login
                             </button>
                         )}
 
                         {/* Theme Toggle */}
                         <button 
                             onClick={toggleTheme}
-                            className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors text-gray-900 dark:text-white"
+                            className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors text-gray-900 dark:text-white"
                             aria-label="Toggle Theme"
                         >
                             {isDarkMode ? (
@@ -73,12 +79,11 @@ const NavBar: React.FC = () => {
                         {/* Hamburger Trigger */}
                         <button 
                             onClick={() => setIsMenuOpen(true)}
-                            className="flex flex-col gap-1.5 w-8 items-end group"
+                            className="flex flex-col gap-1.5 w-10 h-10 items-center justify-center rounded-full bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 group transition-colors"
                             aria-label="Open Menu"
                         >
-                            <span className="h-[2px] w-full bg-gray-900 dark:bg-white group-hover:bg-gold transition-colors"></span>
-                            <span className="h-[2px] w-2/3 bg-gray-900 dark:bg-white group-hover:bg-gold transition-colors group-hover:w-full duration-300"></span>
-                            <span className="h-[2px] w-full bg-gray-900 dark:bg-white group-hover:bg-gold transition-colors"></span>
+                            <span className="h-[2px] w-5 bg-gray-900 dark:bg-white group-hover:bg-gold transition-colors rounded-full"></span>
+                            <span className="h-[2px] w-3 bg-gray-900 dark:bg-white group-hover:bg-gold transition-colors group-hover:w-5 duration-300 rounded-full"></span>
                         </button>
                     </div>
                 </div>

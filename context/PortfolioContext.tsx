@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import type { PortfolioData } from '../types';
 import { getPortfolio, savePortfolio } from '../services/api';
@@ -31,6 +30,24 @@ const defaultData: PortfolioData = {
         period: '2020 - 2024', 
         details: 'Graduated with Honors. Capstone project featured a custom-built FPGA accelerator for neural networks. Lead of the University Robotics Club.' 
     },
+  ],
+  certifications: [
+      {
+          id: 'cert1',
+          name: 'TensorFlow Developer Certificate',
+          issuer: 'Google',
+          date: '2023',
+          link: '#',
+          image: 'https://upload.wikimedia.org/wikipedia/commons/2/2d/Tensorflow_logo.svg'
+      },
+      {
+          id: 'cert2',
+          name: 'AWS Certified Machine Learning - Specialty',
+          issuer: 'Amazon Web Services',
+          date: '2022',
+          link: '#',
+          image: ''
+      }
   ],
   experience: [
     { 
@@ -148,14 +165,11 @@ export const PortfolioProvider: React.FC<{ children: ReactNode }> = ({ children 
                   finalData[key] = savedData[key] as any;
               }
           }
-          // Ensure community object exists if loading from older data version
-          if (!finalData.community) {
-              finalData.community = defaultData.community;
-          }
-           // Ensure notes object exists
-          if (!finalData.notes) {
-              finalData.notes = defaultData.notes;
-          }
+          // Ensure arrays and objects exist if loading older versions
+          if (!finalData.community) finalData.community = defaultData.community;
+          if (!finalData.notes) finalData.notes = defaultData.notes;
+          if (!finalData.certifications) finalData.certifications = defaultData.certifications;
+
           setPortfolioData(finalData);
         } else {
            console.log("Database empty. Using default template.");

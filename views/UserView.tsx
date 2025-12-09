@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useTheme } from '../context/ThemeContext';
@@ -69,7 +68,7 @@ const ProjectCard: React.FC<{ project: Project; index: number; onOpen: (p:Projec
 
 const UserView: React.FC = () => {
   const { portfolioData, joinCommunity } = usePortfolio();
-  const { profile, projects, skills, education, experience, community, memories } = portfolioData;
+  const { profile, projects, skills, education, experience, community, memories, certifications } = portfolioData;
   
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [hasJoined, setHasJoined] = useState(false);
@@ -183,7 +182,49 @@ const UserView: React.FC = () => {
                 </div>
             </section>
 
-            {/* --- 3. SKILLS --- */}
+            {/* --- 3. CERTIFICATIONS --- */}
+            <section className="py-20 px-6 md:px-20 z-10 relative" id="certifications">
+                <div className="container mx-auto max-w-6xl">
+                    <div className="mb-16 text-center">
+                        <span className="text-gold font-mono text-sm uppercase tracking-widest mb-2 block">Verified Credentials</span>
+                        <h2 className="text-3xl md:text-5xl font-display font-bold text-gray-900 dark:text-white">Certified Expertise</h2>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        {certifications?.map((cert, index) => (
+                            <motion.div 
+                                key={cert.id}
+                                initial={{ opacity: 0, y: 50, rotateX: 10 }}
+                                whileInView={{ opacity: 1, y: 0, rotateX: 0 }}
+                                transition={{ delay: index * 0.1, duration: 0.6 }}
+                                className="bg-white dark:bg-zinc-900/50 backdrop-blur-md rounded-[2rem] p-6 border border-gray-100 dark:border-white/5 shadow-lg hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 group"
+                            >
+                                <div className="flex items-center gap-4 mb-6">
+                                    <div className="w-16 h-16 rounded-2xl bg-gray-50 dark:bg-black/40 flex items-center justify-center p-2 border border-gray-100 dark:border-white/5">
+                                        {cert.image ? (
+                                            <img src={cert.image} alt={cert.issuer} className="w-full h-full object-contain" />
+                                        ) : (
+                                            <span className="text-2xl">🏅</span>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <div className="text-[10px] font-bold uppercase text-gray-400 tracking-wider mb-1">{cert.issuer}</div>
+                                        <div className="text-xs font-mono text-maroon-600 dark:text-gold">{cert.date}</div>
+                                    </div>
+                                </div>
+                                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 leading-tight group-hover:text-maroon-700 dark:group-hover:text-gold transition-colors">{cert.name}</h3>
+                                {cert.link && (
+                                    <a href={cert.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">
+                                        View Credential <span className="ml-2">→</span>
+                                    </a>
+                                )}
+                            </motion.div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* --- 4. SKILLS --- */}
             <section className="py-32 px-6 md:px-20 z-10 relative" id="skills">
                 <div className="container mx-auto max-w-6xl">
                     <div className="mb-16 text-center lg:text-left">
@@ -199,7 +240,7 @@ const UserView: React.FC = () => {
                 </div>
             </section>
 
-            {/* --- 4. WORK --- */}
+            {/* --- 5. WORK --- */}
             <section className="py-32 px-6 md:px-20 z-10 relative" id="projects">
                 <div className="container mx-auto max-w-6xl">
                     <div className="mb-32 text-center">
@@ -212,7 +253,7 @@ const UserView: React.FC = () => {
                 </div>
             </section>
 
-            {/* --- 5. MEMORIES --- */}
+            {/* --- 6. MEMORIES --- */}
             <section className="py-32 relative z-10">
                 <div className="container mx-auto px-6">
                     <div className="text-center mb-16">
@@ -223,7 +264,7 @@ const UserView: React.FC = () => {
                 </div>
             </section>
 
-            {/* --- 6. TIMELINE --- */}
+            {/* --- 7. TIMELINE --- */}
             <section className="py-32 px-6 md:px-20 relative z-10" id="experience">
                 <div className="container mx-auto max-w-5xl">
                     <div className="mb-24 text-center">
@@ -248,7 +289,7 @@ const UserView: React.FC = () => {
                 </div>
             </section>
 
-            {/* --- 7. FOOTER --- */}
+            {/* --- 8. FOOTER --- */}
             <footer className="bg-gray-50 dark:bg-[#080808] py-32 text-center relative z-10 rounded-t-[3rem] mt-20">
                 <h2 className="text-4xl font-display font-bold text-gray-900 dark:text-white mb-8">{profile.name}</h2>
                 <div className="flex justify-center gap-8 mb-12">

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useAuth } from '../context/AuthContext';
@@ -250,7 +249,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         });
     }
 
-    const navItems = ['General', 'Live Chat', 'Skills', 'Projects', 'Experience', 'Education', 'Gallery', 'Resources'];
+    const navItems = ['General', 'Live Chat', 'Certifications', 'Skills', 'Projects', 'Experience', 'Education', 'Gallery', 'Resources'];
 
     return (
         <div className="flex h-screen bg-gray-50 dark:bg-black text-gray-900 dark:text-white font-sans overflow-hidden transition-colors duration-500">
@@ -381,6 +380,61 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                                                 </div>
                                             ))}
                                         </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* --- CERTIFICATIONS TAB --- */}
+                            {activeTab === 'Certifications' && (
+                                <div className="max-w-4xl animate-fade-in-up">
+                                    <SectionHeader 
+                                        title="Certifications" 
+                                        subtitle="Credentials & Badges"
+                                        action={<ActionButton variant="secondary" onClick={() => addItem('certifications', { name: 'New Certification', issuer: 'Issuer', date: new Date().getFullYear().toString(), link: '', image: '' })}>+ Add Cert</ActionButton>}
+                                    />
+                                    <div className="space-y-6">
+                                        {localData.certifications?.map((cert, idx) => (
+                                            <div key={cert.id} className="bg-white dark:bg-zinc-900 p-6 rounded-sm border border-gray-200 dark:border-gray-800 flex flex-col md:flex-row gap-6">
+                                                 {/* Image Upload */}
+                                                <div className="w-full md:w-32 flex flex-col items-center gap-2">
+                                                    <div className="w-24 h-24 bg-gray-100 dark:bg-white/5 rounded-full flex items-center justify-center overflow-hidden border border-gray-200 dark:border-white/10">
+                                                        {cert.image ? (
+                                                            <img src={cert.image} alt="Badge" className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <span className="text-xs text-gray-400">No Image</span>
+                                                        )}
+                                                    </div>
+                                                    <label className="cursor-pointer text-xs font-bold uppercase text-maroon-600 dark:text-gold hover:underline">
+                                                        Upload Badge
+                                                        <input type="file" className="hidden" accept="image/*" onChange={async (e) => { if (e.target.files?.[0]) { const base64 = await compressImage(e.target.files[0]); updateItem('certifications', idx, 'image', base64); }}} />
+                                                    </label>
+                                                </div>
+                                                
+                                                <div className="flex-1 space-y-4">
+                                                    <div className="flex justify-between items-start">
+                                                        <div className="flex-1">
+                                                            <InputGroup label="Certification Name" className="mb-0">
+                                                                <StyledInput value={cert.name} onChange={(e) => updateItem('certifications', idx, 'name', e.target.value)} />
+                                                            </InputGroup>
+                                                        </div>
+                                                        <ActionButton variant="danger" onClick={() => deleteItem('certifications', idx)} className="ml-4 h-10 w-10 px-0">×</ActionButton>
+                                                    </div>
+                                                    
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <InputGroup label="Issuer" className="mb-0">
+                                                            <StyledInput value={cert.issuer} onChange={(e) => updateItem('certifications', idx, 'issuer', e.target.value)} />
+                                                        </InputGroup>
+                                                        <InputGroup label="Date" className="mb-0">
+                                                            <StyledInput value={cert.date} onChange={(e) => updateItem('certifications', idx, 'date', e.target.value)} />
+                                                        </InputGroup>
+                                                    </div>
+
+                                                    <InputGroup label="Credential Link" className="mb-0">
+                                                        <StyledInput value={cert.link || ''} onChange={(e) => updateItem('certifications', idx, 'link', e.target.value)} placeholder="https://" />
+                                                    </InputGroup>
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
                             )}

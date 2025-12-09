@@ -13,6 +13,15 @@ export interface Skill {
   level: number; // A number from 1 to 100 for the progress bar
 }
 
+export interface Certification {
+  id: string;
+  name: string;
+  issuer: string;
+  date: string;
+  link?: string;
+  image?: string; // Base64 badge or logo
+}
+
 export interface Project {
   id: string;
   title: string;
@@ -76,6 +85,7 @@ export interface CommunityData {
 export interface PortfolioData {
   profile: ProfileData;
   education: Education[];
+  certifications: Certification[];
   skills: Skill[];
   projects: Project[];
   experience: Experience[];
@@ -86,41 +96,43 @@ export interface PortfolioData {
 
 // --- Messaging System Types ---
 
+export interface User {
+  id: string;
+  hashedPassword?: string;
+}
+
+export interface ChatMessage {
+    id: string;
+    roomId: string;
+    senderId: string;
+    message: string;
+    timestamp: number;
+    type: 'text' | 'image' | 'file';
+    mediaUrl?: string;
+    replyTo?: ChatMessage | null;
+    reactions?: Record<string, string[]>;
+    readBy?: string[];
+}
+
 export interface ChatRoom {
   id: string; // 'dm-user1-user2' or 'group-uuid'
   name?: string; // For groups
   type: 'dm' | 'group' | 'global';
   participants: string[];
+  admins?: string[];
   lastMessage?: ChatMessage;
   unreadCount?: number;
   updatedAt: number;
-  admins?: string[];
 }
 
-export interface ChatMessage {
-  id: string;
-  roomId: string;
-  senderId: string;
-  message: string;
-  timestamp: number;
-  type: 'text' | 'image' | 'file';
-  mediaUrl?: string;
-  replyTo?: ChatMessage; // For contextual replies
-  reactions?: Record<string, string[]>; // emoji -> [userIds]
-  status?: 'sent' | 'delivered' | 'read';
-  readBy?: string[]; // Users who have read the message
-}
-
-// For Guestbook Widget
 export interface GuestbookEntry {
   id: string;
-  timestamp: number;
-  userId: string; // Changed from 'name' to 'userId'
+  userId: string;
   message: string;
-  reactions?: { [key: string]: number }; // e.g., { '👍': 10, '❤️': 5 }
+  timestamp: number;
+  reactions?: Record<string, any>;
 }
 
-// For Contact Form
 export interface Lead {
   id: string;
   timestamp: number;
@@ -129,17 +141,10 @@ export interface Lead {
   message: string;
 }
 
-// For Moderation
 export interface Report {
   id: string;
   timestamp: number;
   messageId: string;
   messageContent: string;
   messageAuthor: string;
-}
-
-// For Authentication
-export interface User {
-  id: string; // This will be the unique username
-  hashedPassword: string;
 }

@@ -1,15 +1,11 @@
 
 import React, { ReactNode, useState, useEffect } from 'react';
-import { motion, useScroll, useSpring, useTransform, useVelocity } from 'framer-motion';
+import { motion, useScroll, useTransform } from 'framer-motion';
 
 export const PerspectiveWrapper = ({ children }: { children?: ReactNode }) => {
   const { scrollY } = useScroll();
-  const scrollVelocity = useVelocity(scrollY);
   
-  // High stiffness/damping for a "heavy", premium mechanical feel
-  const smoothVelocity = useSpring(scrollVelocity, { damping: 50, stiffness: 300 });
-
-  // Track viewport height to ensure the pivot point is always exactly center-screen
+  // Track viewport height for center pivot
   const [viewportHeight, setViewportHeight] = useState(typeof window !== 'undefined' ? window.innerHeight : 800);
 
   useEffect(() => {
@@ -18,43 +14,45 @@ export const PerspectiveWrapper = ({ children }: { children?: ReactNode }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // --- Dynamic Transform Origin ---
-  // The pivot moves with the scroll window.
+  // --- Water Wave Animation Math ---
+  // We map the raw scroll pixel value to a sine wave.
+  // The divisor (e.g., 500) controls the frequency of the wave.
+  // The multiplier (e.g., 2 or 10) controls the amplitude/strength.
+  
+  // Sway left/right gently like a current
+  const x = useTransform(scrollY, (y) => Math.sin(y / 400) * 15);
+  
+  // Tilt forward/back like a wave passing under
+  const rotateX = useTransform(scrollY, (y) => Math.sin(y / 300) * 5);
+  
+  // Tilt sideways gently
+  const rotateZ = useTransform(scrollY, (y) => Math.cos(y / 500) * 2);
+
+  // Subtle skew to mimic liquid refraction
+  const skewY = useTransform(scrollY, (y) => Math.sin(y / 600) * 1);
+
+  // Dynamic pivot point to keep the user's view central
   const transformOriginY = useTransform(scrollY, (y) => y + (viewportHeight / 2));
   const transformOrigin = useTransform(transformOriginY, (y) => `50% ${y}px`);
-
-  // --- 3D Physics Transforms ---
-  
-  // 1. Tilt (RotateX): Stronger angle for more drama
-  const rotateX = useTransform(smoothVelocity, [-3000, 0, 3000], [25, 0, -25]);
-  
-  // 2. Skew (Stretch): "Warp Speed" effect. The page stretches vertically when scrolling fast.
-  const skewY = useTransform(smoothVelocity, [-3000, 0, 3000], [-10, 0, 10]);
-
-  // 3. Scale (Breathing): Content shrinks slightly when moving fast to simulate depth.
-  const scale = useTransform(smoothVelocity, [-3000, 0, 3000], [0.95, 1, 0.95]);
-  
-  // 4. Motion Blur: Blurs content based on speed.
-  // We use a small blur to keep text readable but add "speed".
-  const blurValue = useTransform(smoothVelocity, [-3000, 0, 3000], [4, 0, 4]);
-  const filter = useTransform(blurValue, (v) => `blur(${v}px)`);
 
   return (
     <div className="relative w-full min-h-screen bg-white dark:bg-black transition-colors duration-500 overflow-hidden" style={{ perspective: '1200px' }}>
       
-      {/* Dynamic Background Gradient overlay that reacts to scroll speed (Subtle flash) */}
+      {/* Liquid background shimmer */}
       <motion.div 
-        style={{ opacity: useTransform(smoothVelocity, [-3000, 0, 3000], [0.1, 0, 0.1]) }}
-        className="fixed inset-0 pointer-events-none z-20 bg-white dark:bg-maroon-900 mix-blend-overlay"
+        style={{ 
+            opacity: useTransform(scrollY, (y) => 0.05 + Math.abs(Math.sin(y/500)) * 0.05) 
+        }}
+        className="fixed inset-0 pointer-events-none z-20 bg-gradient-to-b from-blue-500/0 via-blue-500/5 to-blue-500/0 dark:from-blue-900/0 dark:via-blue-900/10 dark:to-blue-900/0 mix-blend-overlay"
       />
 
       {/* Main Content Wrapper */}
       <motion.div 
         style={{ 
+            x,
             rotateX,
+            rotateZ,
             skewY,
-            scale, 
-            filter,
             transformOrigin,
             transformStyle: 'preserve-3d'
         }}

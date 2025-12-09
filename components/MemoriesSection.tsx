@@ -41,20 +41,22 @@ const MemoriesSection: React.FC<MemoriesSectionProps> = ({ memories }) => {
 
   return (
     <div className="max-w-5xl mx-auto relative group px-4">
-      <div className="relative aspect-[16/9] w-full overflow-hidden rounded-[3rem] shadow-2xl border-4 border-white dark:border-white/10">
+      {/* Container - Changed background to dark/light neutral to frame the 'contain' image nicely */}
+      <div className="relative aspect-[16/9] w-full overflow-hidden rounded-[3rem] shadow-2xl border-4 border-white dark:border-white/10 bg-gray-100 dark:bg-zinc-900">
         {memories.map((memory, index) => (
              <div
                 key={memory.id}
-                className={`absolute top-0 left-0 w-full h-full transition-all duration-1000 ease-in-out transform ${index === currentIndex ? 'opacity-100 scale-100' : 'opacity-0 scale-105'}`}
+                className={`absolute top-0 left-0 w-full h-full transition-all duration-1000 ease-in-out transform flex items-center justify-center ${index === currentIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
              >
+                {/* Changed to object-contain so the full image is always visible inside the frame */}
                 <img
                   src={memory.image}
                   alt={memory.caption || `Memory ${index + 1}`}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain p-1" 
                 />
                  {memory.caption && (
-                     <div className="absolute bottom-6 left-6 right-6 bg-white/80 dark:bg-black/80 backdrop-blur-md text-gray-900 dark:text-white p-6 rounded-3xl text-center shadow-lg transform transition-all duration-500 delay-300">
-                        <p className="font-display font-bold">{memory.caption}</p>
+                     <div className="absolute bottom-6 left-6 right-6 bg-white/80 dark:bg-black/80 backdrop-blur-md text-gray-900 dark:text-white p-4 rounded-3xl text-center shadow-lg transform transition-all duration-500 delay-300">
+                        <p className="font-display font-bold text-sm md:text-base">{memory.caption}</p>
                     </div>
                  )}
             </div>

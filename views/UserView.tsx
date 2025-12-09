@@ -29,12 +29,14 @@ const ProjectCard: React.FC<{ project: Project; index: number; onOpen: (p:Projec
         >
             <div className="flex flex-col md:flex-row gap-12 items-center transform transition-transform duration-500 group-hover:scale-[1.02] group-hover:rotate-1">
                 {/* 1. Visual Anchor (Image) - Rounded squircle shape */}
-                <div className="w-full md:w-3/5 aspect-video overflow-hidden rounded-[2.5rem] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.25)] relative transition-all duration-500 group-hover:shadow-[0_30px_60px_-15px_rgba(197,160,89,0.3)]">
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-500 z-10"></div>
+                {/* Changed bg to neutral so contained image looks good */}
+                <div className="w-full md:w-3/5 aspect-video overflow-hidden rounded-[2.5rem] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.25)] relative transition-all duration-500 group-hover:shadow-[0_30px_60px_-15px_rgba(197,160,89,0.3)] bg-gray-100 dark:bg-zinc-900/50">
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-500 z-10 pointer-events-none"></div>
+                    {/* Changed object-cover to object-contain */}
                     <SmartImage 
                         src={project.imageGallery[0]} 
                         alt={project.title} 
-                        className="w-full h-full object-cover transform transition-transform duration-1000 ease-out group-hover:scale-110"
+                        className="w-full h-full object-contain transform transition-transform duration-1000 ease-out group-hover:scale-105 p-2"
                     />
                 </div>
 
@@ -142,7 +144,7 @@ const UserView: React.FC = () => {
                         {/* Decorative ring */}
                         <div className="absolute -inset-4 border border-gray-200 dark:border-gray-800 rounded-[3rem] rotate-6"></div>
                         
-                        <div className="w-64 h-64 md:w-96 md:h-96 lg:w-[32rem] lg:h-[32rem] rounded-[2.5rem] overflow-hidden shadow-2xl relative z-10 hover:scale-[1.02] transition-transform duration-500 bg-gray-200">
+                        <div className="w-64 h-64 md:w-96 md:h-96 lg:w-[32rem] lg:h-[32rem] rounded-[2.5rem] overflow-hidden shadow-2xl relative z-10 hover:scale-[1.02] transition-transform duration-500 bg-gray-200 dark:bg-zinc-800">
                             <SmartImage
                                 src={profile.profilePicture}
                                 alt={profile.name}

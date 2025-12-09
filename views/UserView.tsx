@@ -2,16 +2,14 @@
 import React, { useState } from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useTheme } from '../context/ThemeContext';
-import { motion } from 'framer-motion';
+import { motion, useScroll, useTransform } from 'framer-motion';
 import ChatWidget from '../components/ChatWidget';
 import SmartImage from '../components/SmartImage';
-import VoiceControl from '../components/VoiceControl';
 import SocialLinks from '../components/SocialLinks';
 import ScrollPulley from '../components/ScrollPulley';
 import TimelineItem from '../components/Timeline3D';
 import ProjectDetailModal from '../components/ProjectDetailModal';
 import BackToTopButton from '../components/BackToTopButton';
-import ProTipWidget from '../components/ProTipWidget';
 import MemoriesSection from '../components/MemoriesSection';
 import SkillBar from '../components/SkillBar';
 import NavBar from '../components/NavBar';
@@ -22,16 +20,16 @@ import type { Project } from '../types';
 const ProjectCard: React.FC<{ project: Project; index: number; onOpen: (p:Project) => void }> = ({ project, index, onOpen }) => {
     return (
         <motion.div 
-            initial={{ opacity: 0, y: 50 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-50px" }}
-            transition={{ duration: 0.6, delay: index * 0.1 }}
-            className="group relative w-full mb-24 cursor-pointer"
+            initial={{ opacity: 0, y: 100, rotateX: 10 }}
+            whileInView={{ opacity: 1, y: 0, rotateX: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.8, delay: index * 0.1, type: "spring", bounce: 0.4 }}
+            className="group relative w-full mb-24 cursor-pointer perspective-1000"
             onClick={() => onOpen(project)}
         >
-            <div className="flex flex-col md:flex-row gap-12 items-center">
+            <div className="flex flex-col md:flex-row gap-12 items-center transform transition-transform duration-500 group-hover:scale-[1.02] group-hover:rotate-1">
                 {/* 1. Visual Anchor (Image) - Rounded squircle shape */}
-                <div className="w-full md:w-3/5 aspect-video overflow-hidden rounded-[2.5rem] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.25)] relative transition-transform duration-500 hover:scale-[1.02]">
+                <div className="w-full md:w-3/5 aspect-video overflow-hidden rounded-[2.5rem] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.25)] relative transition-all duration-500 group-hover:shadow-[0_30px_60px_-15px_rgba(197,160,89,0.3)]">
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-500 z-10"></div>
                     <SmartImage 
                         src={project.imageGallery[0]} 
@@ -74,6 +72,11 @@ const UserView: React.FC = () => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [hasJoined, setHasJoined] = useState(false);
 
+  // Parallax Setup
+  const { scrollY } = useScroll();
+  const blobY1 = useTransform(scrollY, [0, 2000], [0, 600]);
+  const blobY2 = useTransform(scrollY, [0, 2000], [0, -400]);
+
   const handleJoin = async () => {
       if(hasJoined) return;
       await joinCommunity();
@@ -83,17 +86,15 @@ const UserView: React.FC = () => {
   return (
       <div className="bg-[#fcfcfc] dark:bg-[#050505] text-gray-900 dark:text-white min-h-screen font-sans selection:bg-maroon-900 selection:text-white overflow-x-hidden transition-colors duration-500 relative">
         
-        {/* --- Ambient Background Blobs --- */}
-        <div className="fixed top-[-20%] left-[-10%] w-[50vw] h-[50vw] bg-purple-900/10 dark:bg-purple-900/20 rounded-full blur-[150px] pointer-events-none z-0" />
-        <div className="fixed bottom-[-10%] right-[-10%] w-[40vw] h-[40vw] bg-gold/10 dark:bg-gold/10 rounded-full blur-[120px] pointer-events-none z-0" />
+        {/* --- Ambient Background Blobs (Parallax) --- */}
+        <motion.div style={{ y: blobY1 }} className="fixed top-[-20%] left-[-10%] w-[50vw] h-[50vw] bg-purple-900/10 dark:bg-purple-900/20 rounded-full blur-[150px] pointer-events-none z-0" />
+        <motion.div style={{ y: blobY2 }} className="fixed bottom-[-10%] right-[-10%] w-[40vw] h-[40vw] bg-gold/10 dark:bg-gold/10 rounded-full blur-[120px] pointer-events-none z-0" />
 
         {/* --- FIXED ELEMENTS --- */}
         <NavBar />
         <ScrollPulley />
         <BackToTopButton />
         <ChatWidget />
-        <ProTipWidget />
-        <VoiceControl onNavigate={() => {}} />
 
         {/* --- SCROLLABLE CONTENT WITH 3D ANIMATION --- */}
         <PerspectiveWrapper>
@@ -104,14 +105,15 @@ const UserView: React.FC = () => {
                     {/* Text Content */}
                     <div className="flex-1 flex flex-col items-center lg:items-start text-center lg:text-left max-w-3xl">
                         <motion.div 
-                            initial={{ opacity: 0, y: 30 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.8 }}
+                            initial={{ opacity: 0, x: -50, rotateY: 15 }}
+                            animate={{ opacity: 1, x: 0, rotateY: 0 }}
+                            transition={{ duration: 1, ease: "easeOut" }}
+                            style={{ transformStyle: 'preserve-3d' }}
                         >
                             <span className="inline-block py-1 px-3 rounded-full bg-maroon-50 dark:bg-maroon-900/30 text-maroon-700 dark:text-maroon-200 text-xs font-bold tracking-widest mb-6 border border-maroon-100 dark:border-maroon-800">
                                 PORTFOLIO 2024
                             </span>
-                            <h1 className="text-6xl md:text-8xl lg:text-9xl font-display font-bold tracking-tight text-gray-900 dark:text-white mb-8 leading-[0.85]">
+                            <h1 className="text-6xl md:text-8xl lg:text-9xl font-display font-bold tracking-tight text-gray-900 dark:text-white mb-8 leading-[0.85] drop-shadow-2xl">
                                 {profile.name}
                             </h1>
                             <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-400 font-light leading-relaxed mb-10 max-w-2xl">
@@ -121,9 +123,9 @@ const UserView: React.FC = () => {
                         </motion.div>
 
                         <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: 0.5 }}
+                            initial={{ opacity: 0, y: 50 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.5, type: "spring" }}
                             className="flex gap-6 justify-center lg:justify-start"
                         >
                             <SocialLinks links={profile.socialLinks} />
@@ -132,15 +134,15 @@ const UserView: React.FC = () => {
 
                     {/* Profile Picture - Organic Shape */}
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.8, rotate: -5 }}
+                        initial={{ opacity: 0, scale: 0.5, rotate: -15 }}
                         animate={{ opacity: 1, scale: 1, rotate: 0 }}
-                        transition={{ duration: 1.2, type: 'spring' }}
+                        transition={{ duration: 1.2, type: 'spring', bounce: 0.5 }}
                         className="relative flex-shrink-0 lg:mr-16"
                     >
                         {/* Decorative ring */}
                         <div className="absolute -inset-4 border border-gray-200 dark:border-gray-800 rounded-[3rem] rotate-6"></div>
                         
-                        <div className="w-64 h-64 md:w-96 md:h-96 lg:w-[32rem] lg:h-[32rem] rounded-[2.5rem] overflow-hidden shadow-2xl relative z-10 hover:scale-[1.02] transition-transform duration-500">
+                        <div className="w-64 h-64 md:w-96 md:h-96 lg:w-[32rem] lg:h-[32rem] rounded-[2.5rem] overflow-hidden shadow-2xl relative z-10 hover:scale-[1.02] transition-transform duration-500 bg-gray-200">
                             <SmartImage
                                 src={profile.profilePicture}
                                 alt={profile.name}
@@ -155,7 +157,11 @@ const UserView: React.FC = () => {
             {/* --- 2. COMMUNITY (Pill) --- */}
             <section className="py-12 z-10 relative">
                 <div className="container mx-auto px-6 md:px-20">
-                    <div className="bg-white/50 dark:bg-white/5 backdrop-blur-lg border border-gray-200 dark:border-white/10 rounded-full p-2 pl-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl">
+                    <motion.div 
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        whileInView={{ scale: 1, opacity: 1 }}
+                        className="bg-white/50 dark:bg-white/5 backdrop-blur-lg border border-gray-200 dark:border-white/10 rounded-full p-2 pl-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl"
+                    >
                          <p className="text-gray-600 dark:text-gray-300 text-sm font-medium">{community?.description || "Join the network."}</p>
                          <div className="flex items-center gap-6 pr-2">
                             <span className="font-mono text-gray-900 dark:text-white font-bold">{community?.memberCount} Members</span>
@@ -165,13 +171,13 @@ const UserView: React.FC = () => {
                                 className={`text-xs font-bold uppercase tracking-widest px-8 py-4 rounded-full transition-all shadow-lg ${
                                     hasJoined 
                                     ? 'bg-green-100 text-green-700' 
-                                    : 'bg-black text-white dark:bg-white dark:text-black hover:scale-105'
+                                    : 'bg-black text-white dark:bg-white dark:text-black hover:scale-110 active:scale-95'
                                 }`}
                             >
                                 {hasJoined ? "Joined" : "Join Group"}
                             </button>
                         </div>
-                    </div>
+                    </motion.div>
                 </div>
             </section>
 
